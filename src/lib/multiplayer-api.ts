@@ -328,3 +328,26 @@ export async function updateQuestionAnswer(questionId: string, answer: string) {
 		throw new Error(`Failed to update question answer: ${error.message}`);
 	}
 }
+
+/**
+ * Delete a question and any linked question timer rows
+ */
+export async function deleteQuestion(questionId: string) {
+	const { error: timerError } = await supabase
+		.from("timers")
+		.delete()
+		.eq("question_id", questionId);
+
+	if (timerError) {
+		console.error("Failed to delete linked timers:", timerError);
+	}
+
+	const { error } = await supabase
+		.from("questions")
+		.delete()
+		.eq("id", questionId);
+
+	if (error) {
+		throw new Error(`Failed to delete question: ${error.message}`);
+	}
+}
