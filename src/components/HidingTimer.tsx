@@ -22,8 +22,8 @@ export function HidingTimer() {
 
 	const hidingDurationMs = (settings?.hidingDurationMinutes ?? 30) * 60 * 1000;
 
-\t// Show only during waiting and hiding phases
-\tif (phase !== "waiting" && phase !== "hiding") return null;
+	// Show only during waiting and hiding phases
+	if (phase !== "waiting" && phase !== "hiding") return null;
 
 	useEffect(() => {
 		const interval = setInterval(() => {
