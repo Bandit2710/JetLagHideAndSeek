@@ -22,7 +22,7 @@ export function useRealtimePlayers() {
 	const role = useStore(currentUserRole);
 
 	const sanitizePlayers = (players: PlayerData[]) => {
-		if (role !== "seeker") return players;
+		if (role === "hider") return players;
 		return players.map((p: any) =>
 			p.role === "hider" ? { ...p, current_location: null } : p
 		);
@@ -246,9 +246,7 @@ export function useRealtimeGamePhase() {
 					if (session.game_phase) {
 						gamePhase.set(session.game_phase);
 					}
-					if (session.phase_started_at) {
-						phaseStartedAt.set(session.phase_started_at);
-					}
+					phaseStartedAt.set(session.phase_started_at ?? null);
 				}
 			)
 			.subscribe();

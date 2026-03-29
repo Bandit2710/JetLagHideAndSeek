@@ -284,11 +284,15 @@ export async function createTimer(
 export async function updateTimer(
 	timerId: string,
 	isActive: boolean,
-	durationMs?: number
+	durationMs?: number,
+	startedAt?: string
 ) {
 	const updates: any = { is_active: isActive };
 	if (durationMs !== undefined) {
 		updates.duration_ms = durationMs;
+	}
+	if (startedAt !== undefined) {
+		updates.started_at = startedAt;
 	}
 
 	const { error } = await supabase

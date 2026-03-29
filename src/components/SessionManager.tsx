@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useStore } from "@nanostores/react";
 import { authUser, currentSessionId, currentUserRole, sessionSettings } from "@/lib/multiplayer-context";
-import { followMe, hiderMode, linkHiderToGPS, mapGeoLocation } from "@/lib/context";
+import { baseTileLayer, followMe, hiderMode, linkHiderToGPS } from "@/lib/context";
 import { createSessionWithSettings, getOrCreatePlayer, getSessionByInviteCode } from "@/lib/multiplayer-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,10 +95,9 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 				window.localStorage.setItem(ROUND_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
 			}
 
-			const fallback = mapGeoLocation.get().geometry.coordinates;
-			hiderMode.set({ latitude: fallback[1], longitude: fallback[0] });
+			hiderMode.set(false);
 			followMe.set(true);
-			linkHiderToGPS.set(true);
+			linkHiderToGPS.set(false);
 
 			setCreatedCode(inviteCode);
 		} catch (err) {
@@ -124,6 +123,7 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 			currentSessionId.set(session.id);
 			currentUserRole.set("seeker");
 			sessionSettings.set((session as any).settings ?? null);
+			baseTileLayer.set("voyager");
 			followMe.set(true);
 			linkHiderToGPS.set(false);
 			hiderMode.set(false);

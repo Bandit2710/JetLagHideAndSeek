@@ -22,14 +22,11 @@ import {
     defaultUnit,
     disabledStations,
     displayHidingZonesOptions,
-    followMe,
-    hiderMode,
     hidingRadius,
     hidingRadiusUnits,
     hidingZone,
     includeDefaultStations,
     leafletMapContext,
-    linkHiderToGPS,
     mapGeoJSON,
     mapGeoLocation,
     pastebinApiKey,
@@ -52,18 +49,12 @@ import {
 } from "@/lib/utils";
 import { questionsSchema } from "@/maps/schema";
 
-import { LatitudeLongitude } from "./LatLngPicker";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select } from "./ui/select";
 import { Separator } from "./ui/separator";
-import {
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-} from "./ui/sidebar-l";
 import { UnitSelect } from "./UnitSelect";
 
 const HIDING_ZONE_URL_PARAM = "hz";
@@ -75,7 +66,6 @@ export const OptionDrawers = ({ className }: { className?: string }) => {
     const $defaultUnit = useStore(defaultUnit);
     const $animateMapMovements = useStore(animateMapMovements);
     const $autoZoom = useStore(autoZoom);
-    const $hiderMode = useStore(hiderMode);
     const $autoSave = useStore(autoSave);
     const $hidingZone = useStore(hidingZone);
     const $planningMode = useStore(planningModeEnabled);
@@ -83,8 +73,6 @@ export const OptionDrawers = ({ className }: { className?: string }) => {
     const $thunderforestApiKey = useStore(thunderforestApiKey);
     const $pastebinApiKey = useStore(pastebinApiKey);
     const $alwaysUsePastebin = useStore(alwaysUsePastebin);
-    const $followMe = useStore(followMe);
-    const $linkHiderToGPS = useStore(linkHiderToGPS);
     const $customInitPref = useStore(customInitPreference);
     const lastDefaultUnit = useRef($defaultUnit);
     const hasSyncedInitialUnit = useRef(false);
@@ -570,108 +558,9 @@ export const OptionDrawers = ({ className }: { className?: string }) => {
                             </div>
                             <div className="flex flex-row items-center gap-2">
                                 <label className="text-2xl font-semibold font-poppins">
-                                    Follow Me (GPS)?
+                                    Hider location is GPS-based in multiplayer
                                 </label>
-                                <Checkbox
-                                    checked={$followMe}
-                                    onCheckedChange={() =>
-                                        followMe.set(!$followMe)
-                                    }
-                                />
                             </div>
-                            <div className="flex flex-row items-center gap-2">
-                                <label className="text-2xl font-semibold font-poppins">
-                                    Hider mode?
-                                </label>
-                                <Checkbox
-                                    checked={!!$hiderMode}
-                                    onCheckedChange={() => {
-                                        if ($hiderMode === false) {
-                                            const $leafletMapContext =
-                                                leafletMapContext.get();
-
-                                            if ($leafletMapContext) {
-                                                const center =
-                                                    $leafletMapContext.getCenter();
-                                                hiderMode.set({
-                                                    latitude: center.lat,
-                                                    longitude: center.lng,
-                                                });
-                                            } else {
-                                                hiderMode.set({
-                                                    latitude: 0,
-                                                    longitude: 0,
-                                                });
-                                            }
-                                        } else {
-                                            hiderMode.set(false);
-                                        }
-                                    }}
-                                />
-                            </div>
-                            <div className="flex flex-row items-center gap-2">
-                                <label className="text-2xl font-semibold font-poppins">
-                                    Link Hider To GPS?
-                                </label>
-                                <Checkbox
-                                    checked={$linkHiderToGPS}
-                                    onCheckedChange={() => {
-                                        const next = !$linkHiderToGPS;
-                                        linkHiderToGPS.set(next);
-
-                                        if (next && $hiderMode === false) {
-                                            const $leafletMapContext =
-                                                leafletMapContext.get();
-
-                                            if ($leafletMapContext) {
-                                                const center =
-                                                    $leafletMapContext.getCenter();
-                                                hiderMode.set({
-                                                    latitude: center.lat,
-                                                    longitude: center.lng,
-                                                });
-                                            }
-                                        }
-                                    }}
-                                />
-                            </div>
-                            {$hiderMode !== false && (
-                                <SidebarMenu>
-                                    <LatitudeLongitude
-                                        latitude={$hiderMode.latitude}
-                                        longitude={$hiderMode.longitude}
-                                        inlineEdit
-                                        onChange={(latitude, longitude) => {
-                                            $hiderMode.latitude =
-                                                latitude ?? $hiderMode.latitude;
-                                            $hiderMode.longitude =
-                                                longitude ??
-                                                $hiderMode.longitude;
-
-                                            if ($autoSave) {
-                                                hiderMode.set({
-                                                    ...$hiderMode,
-                                                });
-                                            } else {
-                                                triggerLocalRefresh.set(
-                                                    Math.random(),
-                                                );
-                                            }
-                                        }}
-                                        label="Hider Location"
-                                    />
-                                    {!autoSave && (
-                                        <SidebarMenuItem>
-                                            <SidebarMenuButton
-                                                className="bg-blue-600 p-2 rounded-md font-semibold font-poppins transition-shadow duration-500 mt-2"
-                                                onClick={save}
-                                            >
-                                                Save
-                                            </SidebarMenuButton>
-                                        </SidebarMenuItem>
-                                    )}
-                                </SidebarMenu>
-                            )}
                         </div>
                     </div>
                 </DrawerContent>

@@ -40,11 +40,10 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 
 	const [collapsed, setCollapsed] = useState(false);
 	const [showNewQuestion, setShowNewQuestion] = useState(false);
-	const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);\tconst [pendingQuestion, setPendingQuestion] = useState<{ type: string; text: string } | null>(null);
-\tconst [isSubmitting, setIsSubmitting] = useState(false);
+	const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
+	const [pendingQuestion, setPendingQuestion] = useState<{ type: string; text: string } | null>(null);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	useRealtimeQuestions();
-
-	const selectedQuestionData = questions.find((q: QuestionData) => q.id === selectedQuestion);
 
 	const handleAskQuestion = async (questionType: string, questionText: string) => {
 		if (!sessionId || !user || !currentLocation) return;

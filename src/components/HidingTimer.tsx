@@ -71,7 +71,7 @@ export function HidingTimer() {
 	if (!started) {
 		if (role !== "hider") {
 			return (
-				<div className="fixed bottom-8 right-8 z-40">
+				<div className="fixed bottom-8 right-8 z-[1200]">
 					<div className="rounded-lg border-2 border-border bg-card p-4 shadow-lg">
 						<p className="text-sm text-muted-foreground text-center">
 							Waiting for hider to start...
@@ -82,7 +82,7 @@ export function HidingTimer() {
 		}
 
 		return (
-			<div className="fixed bottom-8 right-8 z-40">
+			<div className="fixed bottom-8 right-8 z-[1200]">
 				<div className="rounded-lg border-2 border-border bg-card p-4 shadow-lg">
 					<Button
 						onClick={handleStartHiding}
@@ -106,7 +106,7 @@ export function HidingTimer() {
 	const progress = remaining !== null ? ((hidingDurationMs - remaining) / hidingDurationMs) * 100 : 0;
 
 	return (
-		<div className="fixed bottom-8 right-8 z-40">
+		<div className="fixed bottom-8 right-8 z-[1200]">
 			<div
 				className={cn(
 					"rounded-lg border-2 p-4 shadow-lg min-w-[200px]",

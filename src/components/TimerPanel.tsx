@@ -44,7 +44,13 @@ export function TimerPanel() {
 
 	const handleToggleTimer = async (timer: TimerData) => {
 		try {
-			await updateTimer(timer.id, !timer.is_active);
+			if (timer.is_active) {
+				const elapsed = Date.now() - new Date(timer.started_at).getTime();
+				const remaining = Math.max(0, timer.duration_ms - elapsed);
+				await updateTimer(timer.id, false, remaining);
+			} else {
+				await updateTimer(timer.id, true, timer.duration_ms, new Date().toISOString());
+			}
 		} catch (error) {
 			console.error("Failed to toggle timer:", error);
 		}
@@ -59,6 +65,12 @@ export function TimerPanel() {
 	};
 
 	const getTimeRemaining = (timer: TimerData) => {
+		if (!timer.is_active) {
+			const minutes = Math.floor(timer.duration_ms / 60000);
+			const seconds = Math.floor((timer.duration_ms % 60000) / 1000);
+			return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+		}
+
 		const elapsed = Date.now() - new Date(timer.started_at).getTime();
 		const remaining = Math.max(0, timer.duration_ms - elapsed);
 		const minutes = Math.floor(remaining / 60000);

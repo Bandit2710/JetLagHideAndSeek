@@ -31,6 +31,8 @@ import {
     SidebarMenu,
 } from "@/components/ui/sidebar-l";
 import { isLoading, questions } from "@/lib/context";
+import { currentSessionId, sessionQuestions } from "@/lib/multiplayer-context";
+import { deleteQuestion } from "@/lib/multiplayer-api";
 import { cn } from "@/lib/utils";
 
 export const QuestionCard = ({
@@ -57,7 +59,29 @@ export const QuestionCard = ({
     const [isCollapsed, setIsCollapsed] = useState(collapsed ?? false);
     const $questions = useStore(questions);
     const $isLoading = useStore(isLoading);
+    const $sessionId = useStore(currentSessionId);
+    const $sessionQuestions = useStore(sessionQuestions);
     const copyButtonRef = useRef<HTMLButtonElement>(null);
+
+    const deleteRemoteQuestionsForKeys = async (keys: number[]) => {
+        if (!$sessionId || keys.length === 0) return;
+
+        const keySet = new Set(keys);
+        const remoteIds = $sessionQuestions
+            .filter((q: any) => keySet.has(q?.question_data?.key))
+            .map((q: any) => q.id)
+            .filter(Boolean);
+
+        if (remoteIds.length === 0) return;
+
+        await Promise.all(
+            remoteIds.map((id: string) =>
+                deleteQuestion(id).catch((error) => {
+                    console.error("Failed to delete remote question:", error);
+                }),
+            ),
+        );
+    };
 
     const toggleCollapse = () => {
         if (setCollapsed) {
@@ -214,14 +238,20 @@ export const QuestionCard = ({
                                             Cancel
                                         </AlertDialogCancel>
                                         <AlertDialogAction
-                                            onClick={() => {
+                                            onClick={async () => {
+                                                await deleteRemoteQuestionsForKeys(
+                                                    $questions.map((q) => q.key),
+                                                );
                                                 questions.set([]);
                                             }}
                                         >
                                             Delete All Questions
                                         </AlertDialogAction>
                                         <AlertDialogAction
-                                            onClick={() => {
+                                            onClick={async () => {
+                                                await deleteRemoteQuestionsForKeys([
+                                                    questionKey,
+                                                ]);
                                                 questions.set(
                                                     $questions.filter(
                                                         (q) =>

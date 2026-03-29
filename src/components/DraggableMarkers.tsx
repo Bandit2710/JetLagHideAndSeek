@@ -15,6 +15,7 @@ import {
     suppressNextAutoFocus,
     triggerLocalRefresh,
 } from "@/lib/context";
+import { currentSessionId, currentUserRole } from "@/lib/multiplayer-context";
 import type { ICON_COLORS } from "@/maps/api";
 
 import { LatitudeLongitude } from "./LatLngPicker";
@@ -203,10 +204,13 @@ export const DraggableMarkers = () => {
     useStore(triggerLocalRefresh);
     const $questions = useStore(questions);
     const $hiderMode = useStore(hiderMode);
+    const $sessionId = useStore(currentSessionId);
+    const $role = useStore(currentUserRole);
+    const showHiderMarker = !$sessionId || $role === "hider";
 
     return (
         <Fragment>
-            {$hiderMode !== false && (
+            {showHiderMarker && $hiderMode !== false && (
                 <ColoredMarker
                     color="green"
                     key="hider"

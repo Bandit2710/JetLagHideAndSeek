@@ -31,6 +31,7 @@ import {
     thunderforestApiKey,
     triggerLocalRefresh,
 } from "@/lib/context";
+import { currentSessionId, currentUserRole } from "@/lib/multiplayer-context";
 import { cn } from "@/lib/utils";
 import { applyQuestionsToMapGeoData, holedMask } from "@/maps";
 import { hiderifyQuestion } from "@/maps";
@@ -130,6 +131,8 @@ export const Map = ({ className }: { className?: string }) => {
     const $baseTileLayer = useStore(baseTileLayer);
     const $thunderforestApiKey = useStore(thunderforestApiKey);
     const $hiderMode = useStore(hiderMode);
+    const $sessionId = useStore(currentSessionId);
+    const $role = useStore(currentUserRole);
     const $isLoading = useStore(isLoading);
     const $followMe = useStore(followMe);
     const $linkHiderToGPS = useStore(linkHiderToGPS);
@@ -183,7 +186,7 @@ export const Map = ({ className }: { className?: string }) => {
             }
         }
 
-        if ($hiderMode !== false) {
+        if (!$sessionId && $hiderMode !== false) {
             for (const question of $questions) {
                 await hiderifyQuestion(question);
             }
@@ -435,7 +438,7 @@ export const Map = ({ className }: { className?: string }) => {
         if (!map) return;
 
         refreshQuestions(false);
-    }, [$hiderMode, map]);
+    }, [$hiderMode, map, $sessionId]);
 
     useEffect(() => {
         const intervalId = setInterval(async () => {
@@ -482,9 +485,11 @@ export const Map = ({ className }: { className?: string }) => {
 
     useEffect(() => {
         if (!map) return;
-        const shouldWatchPosition = $followMe || $linkHiderToGPS;
+        const isSeekerInMultiplayer = !!$sessionId && $role === "seeker";
+        const shouldShowFollowMarker = $followMe || isSeekerInMultiplayer;
+        const shouldWatchPosition = shouldShowFollowMarker || (!$sessionId && $linkHiderToGPS);
 
-        if (!$followMe && followMeMarkerRef.current) {
+        if (!shouldShowFollowMarker && followMeMarkerRef.current) {
             map.removeLayer(followMeMarkerRef.current);
             followMeMarkerRef.current = null;
         }
@@ -506,19 +511,23 @@ export const Map = ({ className }: { className?: string }) => {
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
 
-                if ($linkHiderToGPS) {
+                if (!$sessionId && $linkHiderToGPS) {
                     hiderMode.set({
                         latitude: lat,
                         longitude: lng,
                     });
                 }
 
-                if ($followMe && followMeMarkerRef.current) {
+                if (shouldShowFollowMarker && followMeMarkerRef.current) {
                     followMeMarkerRef.current.setLatLng([lat, lng]);
-                } else if ($followMe) {
+                } else if (shouldShowFollowMarker) {
+                    const iconHtml = isSeekerInMultiplayer
+                        ? `<div class="text-amber-700 bg-white rounded-full border-2 border-amber-700 shadow w-5 h-5 flex items-center justify-center"><svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1l5.5 12h-11L8 1z" fill="#d97706"/></svg></div>`
+                        : `<div class="text-blue-700 bg-white rounded-full border-2 border-blue-700 shadow w-5 h-5 flex items-center justify-center"><svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#2A81CB" opacity="0.5"/><circle cx="8" cy="8" r="3" fill="#2A81CB"/></svg></div>`;
+
                     const marker = L.marker([lat, lng], {
                         icon: L.divIcon({
-                            html: `<div class="text-blue-700 bg-white rounded-full border-2 border-blue-700 shadow w-5 h-5 flex items-center justify-center"><svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#2A81CB" opacity="0.5"/><circle cx="8" cy="8" r="3" fill="#2A81CB"/></svg></div>`,
+                            html: iconHtml,
                             className: "",
                         }),
                         zIndexOffset: 1000,
@@ -533,7 +542,9 @@ export const Map = ({ className }: { className?: string }) => {
             () => {
                 toast.error("Unable to access your location.");
                 followMe.set(false);
-                linkHiderToGPS.set(false);
+                if (!$sessionId) {
+                    linkHiderToGPS.set(false);
+                }
             },
             { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 },
         );
@@ -547,7 +558,7 @@ export const Map = ({ className }: { className?: string }) => {
                 geoWatchIdRef.current = null;
             }
         };
-    }, [$followMe, $linkHiderToGPS, map]);
+    }, [$followMe, $linkHiderToGPS, $sessionId, $role, map]);
 
     return displayMap;
 };
