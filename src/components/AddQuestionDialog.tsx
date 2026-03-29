@@ -142,88 +142,70 @@ export const AddQuestionDialog = ({
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{children}</DialogTrigger>
-            <DialogContent className="max-h-[80vh] overflow-y-auto">
+            <DialogContent>
                 <DialogTitle>Add Question</DialogTitle>
                 <DialogDescription>
                     Select which question type you would like to add.
                 </DialogDescription>
 
-                <div className="mt-4 space-y-4">
-                    {/* Standard Questions Section */}
-                    <div>
-                        <h3 className="font-semibold mb-2 text-sm text-foreground/70">Standard Questions</h3>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <SidebarMenuButton
-                                onClick={() => {
-                                    if (runAddRadius()) setOpen(false);
-                                }}
-                                disabled={$isLoading || !isEnabled("radius")}
-                            >
-                                Add Radius
-                            </SidebarMenuButton>
-                            <SidebarMenuButton
-                                onClick={() => {
-                                    if (runAddThermometer()) setOpen(false);
-                                }}
-                                disabled={$isLoading || !isEnabled("thermometer")}
-                            >
-                                Add Thermometer
-                            </SidebarMenuButton>
-                            <SidebarMenuButton
-                                onClick={() => {
-                                    if (runAddTentacles()) setOpen(false);
-                                }}
-                                disabled={$isLoading || !isEnabled("tentacles")}
-                            >
-                                Add Tentacles
-                            </SidebarMenuButton>
-                            <SidebarMenuButton
-                                onClick={() => {
-                                    if (runAddMatching()) setOpen(false);
-                                }}
-                                disabled={$isLoading || !isEnabled("matching")}
-                            >
-                                Add Matching
-                            </SidebarMenuButton>
-                            <SidebarMenuButton
-                                onClick={() => {
-                                    if (runAddMeasuring()) setOpen(false);
-                                }}
-                                disabled={$isLoading || !isEnabled("measuring")}
-                            >
-                                Add Measuring
-                            </SidebarMenuButton>
-                        </div>
-                    </div>
-
-                    {/* Photo Questions Section */}
-                    <div>
-                        <h3 className="font-semibold mb-2 text-sm text-foreground/70">Photo Questions</h3>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <SidebarMenuButton
-                                onClick={() => {
-                                    if (runAddStreetTrace()) setOpen(false);
-                                }}
-                                disabled={$isLoading || !isEnabled("street-trace")}
-                                className="sm:col-span-2"
-                            >
-                                Add Street Trace
-                            </SidebarMenuButton>
-                        </div>
-                    </div>
-
-                    {/* Other Actions */}
-                    <div className="border-t pt-2">
-                        <SidebarMenuButton
-                            onClick={async () => {
-                                const ok = await runPasteQuestion();
-                                if (ok) setOpen(false);
-                            }}
-                            disabled={$isLoading}
-                        >
-                            Paste Question
-                        </SidebarMenuButton>
-                    </div>
+                <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <SidebarMenuButton
+                        onClick={() => {
+                            if (runAddRadius()) setOpen(false);
+                        }}
+                        disabled={$isLoading || !isEnabled("radius")}
+                    >
+                        Add Radius
+                    </SidebarMenuButton>
+                    <SidebarMenuButton
+                        onClick={() => {
+                            if (runAddThermometer()) setOpen(false);
+                        }}
+                        disabled={$isLoading || !isEnabled("thermometer")}
+                    >
+                        Add Thermometer
+                    </SidebarMenuButton>
+                    <SidebarMenuButton
+                        onClick={() => {
+                            if (runAddTentacles()) setOpen(false);
+                        }}
+                        disabled={$isLoading || !isEnabled("tentacles")}
+                    >
+                        Add Tentacles
+                    </SidebarMenuButton>
+                    <SidebarMenuButton
+                        onClick={() => {
+                            if (runAddMatching()) setOpen(false);
+                        }}
+                        disabled={$isLoading || !isEnabled("matching")}
+                    >
+                        Add Matching
+                    </SidebarMenuButton>
+                    <SidebarMenuButton
+                        onClick={() => {
+                            if (runAddMeasuring()) setOpen(false);
+                        }}
+                        disabled={$isLoading || !isEnabled("measuring")}
+                    >
+                        Add Measuring
+                    </SidebarMenuButton>
+                    <SidebarMenuButton
+                        onClick={() => {
+                            if (runAddStreetTrace()) setOpen(false);
+                        }}
+                        disabled={$isLoading || !isEnabled("street-trace")}
+                    >
+                        Add Street Trace
+                    </SidebarMenuButton>
+                    <SidebarMenuButton
+                        onClick={async () => {
+                            const ok = await runPasteQuestion();
+                            if (ok) setOpen(false);
+                        }}
+                        disabled={$isLoading}
+                    >
+                        Paste Question
+                    </SidebarMenuButton>
                 </div>
             </DialogContent>
         </Dialog>

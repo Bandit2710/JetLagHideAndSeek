@@ -1,22 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useStore } from "@nanostores/react";
 import {
-	currentUserRole,
 	sessionQuestions,
-	sessionTimers,
 	currentSessionId,
 	authUser,
+	isSeeker,
 	sessionSettings,
 	type QuestionData,
 } from "@/lib/multiplayer-context";
 import { useRealtimeQuestions } from "@/hooks/use-multiplayer";
-import { addQuestion, createQuestionTimer, createTimer } from "@/lib/multiplayer-api";
+import { addQuestion } from "@/lib/multiplayer-api";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ChevronDown, Send, PanelBottomOpen } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { TimerDisplay } from "@/components/TimerDisplay";
 
 export interface QuestionPanelProps {
 	currentLocation?: { latitude: number; longitude: number };
@@ -33,10 +30,9 @@ const QUESTION_TYPE_LABELS: Record<string, string> = {
 
 export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 	const questions = useStore(sessionQuestions);
-	const timers = useStore(sessionTimers);
 	const sessionId = useStore(currentSessionId);
 	const user = useStore(authUser);
-	const role = useStore(currentUserRole);
+	const seeker = useStore(isSeeker);
 	const settings = useStore(sessionSettings);
 	const enabledTypes = settings?.enabledQuestionTypes;
 	const allTypes = ["radius", "thermometer", "tentacles", "matching", "measuring", "street-trace"];
@@ -45,117 +41,73 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 	const [collapsed, setCollapsed] = useState(false);
 	const [showNewQuestion, setShowNewQuestion] = useState(false);
 	const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
-	const [pendingQuestion, setPendingQuestion] = useState<{
-		type: string;
-		text: string;
-		latitude: number;
-		longitude: number;
-	} | null>(null);
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [nowMs, setNowMs] = useState(Date.now());
+
 	useRealtimeQuestions();
 
-	useEffect(() => {
-		const interval = setInterval(() => setNowMs(Date.now()), 1000);
-		return () => clearInterval(interval);
-	}, []);
+	const selectedQuestionData = questions.find((q: QuestionData) => q.id === selectedQuestion);
 
-	const getFallbackDuration = (questionType: string) => {
-		if (questionType === "street-trace") return 10 * 60 * 1000;
-		return 5 * 60 * 1000;
-	};
-
-	const handleAskQuestion = async (
-		questionType: string,
-		questionText: string,
-		overrideLocation?: { latitude: number; longitude: number }
-	) => {
-		if (!sessionId || !user) return;
-
-		const activeLocation = overrideLocation ?? currentLocation;
-		if (!activeLocation) return;
+	const handleAskQuestion = async (questionType: string, questionText: string) => {
+		if (!sessionId || !user || !currentLocation) return;
 
 		const payloadByType: Record<string, any> = {
 			radius: {
 				id: "radius",
 				key: Math.random(),
-				data: { lat: activeLocation.latitude, lng: activeLocation.longitude },
+				data: { lat: currentLocation.latitude, lng: currentLocation.longitude },
 			},
 			thermometer: {
 				id: "thermometer",
 				key: Math.random(),
 				data: {
-					latA: activeLocation.latitude,
-					lngA: activeLocation.longitude,
-					latB: activeLocation.latitude + 0.05,
-					lngB: activeLocation.longitude + 0.05,
+					latA: currentLocation.latitude,
+					lngA: currentLocation.longitude,
+					latB: currentLocation.latitude + 0.05,
+					lngB: currentLocation.longitude + 0.05,
 				},
 			},
 			tentacles: {
 				id: "tentacles",
 				key: Math.random(),
-				data: { lat: activeLocation.latitude, lng: activeLocation.longitude },
+				data: { lat: currentLocation.latitude, lng: currentLocation.longitude },
 			},
 			"matching-zone": {
 				id: "matching",
 				key: Math.random(),
-				data: { lat: activeLocation.latitude, lng: activeLocation.longitude, type: "zone" },
+				data: { lat: currentLocation.latitude, lng: currentLocation.longitude, type: "zone" },
 			},
 			"matching-nearest": {
 				id: "matching",
 				key: Math.random(),
-				data: { lat: activeLocation.latitude, lng: activeLocation.longitude, type: "same-nearest-mcdonalds" },
+				data: { lat: currentLocation.latitude, lng: currentLocation.longitude, type: "same-nearest-mcdonalds" },
 			},
 			"measuring-distance": {
 				id: "measuring",
 				key: Math.random(),
-				data: { lat: activeLocation.latitude, lng: activeLocation.longitude, type: "coastline" },
+				data: { lat: currentLocation.latitude, lng: currentLocation.longitude, type: "coastline" },
 			},
 			"street-trace": {
 				id: "street-trace",
 				key: Math.random(),
-				data: { lat: activeLocation.latitude, lng: activeLocation.longitude },
+				data: { lat: currentLocation.latitude, lng: currentLocation.longitude },
 			},
 		};
 
 		const payload = payloadByType[questionType];
 
 		try {
-			setIsSubmitting(true);
-			const createdQuestion = await addQuestion(
+			await addQuestion(
 				sessionId,
 				user.id,
 				questionType,
 				questionText,
-				activeLocation,
+				currentLocation,
 				"Waiting for answer...",
 				payload
 			);
 
-			// Extract timer type (handle matching and measuring variants)
-			let timerType = questionType;
-			if (questionType.startsWith("matching-")) {
-				timerType = "matching";
-			} else if (questionType.startsWith("measuring-")) {
-				timerType = "measuring";
-			}
-
-			// Create question timer; if schema migration is missing, fallback to generic timer so timing still works.
-			if (createdQuestion?.id) {
-				try {
-					await createQuestionTimer(sessionId, createdQuestion.id, timerType);
-				} catch {
-					const fallbackDuration = timerType === "street-trace" ? 10 * 60 * 1000 : 5 * 60 * 1000;
-					await createTimer(sessionId, `${questionText} (Fallback Timer)`, fallbackDuration);
-				}
-			}
-
 			setShowNewQuestion(false);
-			setPendingQuestion(null);
 		} catch (error) {
 			console.error("Failed to ask question:", error);
-		} finally {
-			setIsSubmitting(false);
 		}
 	};
 
@@ -175,14 +127,14 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 		return enabled.includes(q.type);
 	});
 
-	if (role === "hider") {
+	if (!seeker) {
 		return null;
 	}
 
 	return (
 		<>
 		<Drawer open={!collapsed} onOpenChange={(open) => setCollapsed(!open)}>
-			<DrawerContent className="fixed bottom-0 left-0 right-0 max-h-[80vh] rounded-t-lg z-[1140]">
+			<DrawerContent className="fixed bottom-0 left-0 right-0 max-h-[80vh] rounded-t-lg">
 				<DrawerHeader className="cursor-pointer" onClick={() => setCollapsed(!collapsed)}>
 					<DrawerTitle className="flex items-center justify-between">
 						<span>Questions ({questions.length})</span>
@@ -242,25 +194,6 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 											<div className="mt-2 p-2 rounded bg-muted text-sm">
 												<p className="font-semibold">Answer:</p>
 												<p>{question.answer}</p>
-												<div className="mt-2">
-													{timers.some((t: any) => t.question_id === question.id) ? (
-														<TimerDisplay questionId={question.id} />
-													) : question.answer === "Waiting for answer..." ? (
-														<div className="p-2 border rounded-md text-center">
-															<p className="text-xs text-muted-foreground">Timer</p>
-															<p className="font-mono font-bold">
-																{(() => {
-																	const started = new Date(question.created_at).getTime();
-																	const duration = getFallbackDuration(question.question_type);
-																	const remaining = Math.max(0, duration - (nowMs - started));
-																	const minutes = Math.floor(remaining / 60000);
-																	const seconds = Math.floor((remaining % 60000) / 1000);
-																	return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-																})()}
-															</p>
-														</div>
-													) : null}
-												</div>
 											</div>
 										)}
 									</button>
@@ -288,14 +221,7 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 									variant="outline"
 									className="w-full justify-start h-auto py-2"
 									onClick={() => {
-										if (!currentLocation) return;
-										setPendingQuestion({
-											type: q.type,
-											text: q.text,
-											latitude: currentLocation.latitude,
-											longitude: currentLocation.longitude,
-										});
-										setShowNewQuestion(false);
+										handleAskQuestion(q.type, q.text);
 									}}
 								>
 									Add {q.text}
@@ -310,94 +236,10 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 				</Dialog>
 			</DrawerContent>
 		</Drawer>
-		{/* Draft and confirmation dialog for pending question */}
-		<Dialog open={pendingQuestion !== null} onOpenChange={(open) => !open && setPendingQuestion(null)}>
-			<DialogContent className="sm:max-w-[425px]">
-				<DialogHeader>
-					<DialogTitle>Draft Question</DialogTitle>
-				</DialogHeader>
 
-				{pendingQuestion && (
-					<div className="space-y-4">
-						<div className="space-y-2">
-							<p className="text-sm text-muted-foreground">Question Title:</p>
-							<Input
-								value={pendingQuestion.text}
-								onChange={(e) =>
-									setPendingQuestion((prev) =>
-										prev ? { ...prev, text: e.target.value } : prev
-									)
-								}
-								placeholder="Question title"
-							/>
-						</div>
-
-						<div className="grid grid-cols-2 gap-2">
-							<div>
-								<p className="text-sm text-muted-foreground mb-1">Latitude</p>
-								<Input
-									type="number"
-									step="0.0001"
-									value={pendingQuestion.latitude}
-									onChange={(e) =>
-										setPendingQuestion((prev) =>
-											prev
-												? { ...prev, latitude: Number(e.target.value) }
-												: prev
-										)
-									}
-								/>
-							</div>
-							<div>
-								<p className="text-sm text-muted-foreground mb-1">Longitude</p>
-								<Input
-									type="number"
-									step="0.0001"
-									value={pendingQuestion.longitude}
-									onChange={(e) =>
-										setPendingQuestion((prev) =>
-											prev
-												? { ...prev, longitude: Number(e.target.value) }
-												: prev
-										)
-									}
-								/>
-							</div>
-						</div>
-
-						<p className="text-xs text-muted-foreground">
-							Draft is local until you press Send Question.
-						</p>
-					</div>
-				)}
-
-				<DialogFooter>
-					<Button
-						variant="outline"
-						onClick={() => setPendingQuestion(null)}
-						disabled={isSubmitting}
-					>
-						Cancel
-					</Button>
-					<Button
-						onClick={() => {
-							if (pendingQuestion) {
-								handleAskQuestion(pendingQuestion.type, pendingQuestion.text, {
-									latitude: pendingQuestion.latitude,
-									longitude: pendingQuestion.longitude,
-								});
-							}
-						}}
-						disabled={isSubmitting || !pendingQuestion?.text?.trim()}
-					>
-						{isSubmitting ? "Sending..." : "Send Question"}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
 		{collapsed && (
 			<Button
-				className="fixed bottom-4 left-4 z-[1140] shadow-lg"
+				className="fixed bottom-4 left-4 z-[1100] shadow-lg"
 				onClick={() => setCollapsed(false)}
 			>
 				<PanelBottomOpen size={16} /> Show Seeker Panel

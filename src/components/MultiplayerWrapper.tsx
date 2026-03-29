@@ -1,57 +1,80 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "@nanostores/react";
-import { authUser, currentSessionId, currentUserRole, gamePhase, phaseStartedAt, sessionPlayers, sessionQuestions, sessionSettings, sessionTimers } from "@/lib/multiplayer-context";
+import { authUser, currentSessionId, currentUserRole, sessionQuestions, sessionSettings } from "@/lib/multiplayer-context";
 import {
 	useRealtimePlayers,
 	useRealtimeQuestions,
 	useRealtimeTimers,
-	useRealtimeGamePhase,
 } from "@/hooks/use-multiplayer";
 import { SessionManager } from "@/components/SessionManager";
 import { TimerPanel } from "@/components/TimerPanel";
-import { HidingTimer } from "@/components/HidingTimer";
-import { SeekingTimer } from "@/components/SeekingTimer";
 import { QuestionPanel } from "@/components/QuestionInterface";
+import { HiderPanel } from "@/components/HiderPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { updatePlayerLocation, updateQuestionAnswer } from "@/lib/multiplayer-api";
+import { addQuestion, updatePlayerLocation } from "@/lib/multiplayer-api";
 import { supabase } from "@/lib/supabase";
-import { hiderMode, questions as mapQuestions } from "@/lib/context";
-import { computeQuestionAnswer } from "@/lib/question-answerer";
+import { questions as mapQuestions } from "@/lib/context";
+
+const getQuestionLocation = (question: any) => {
+	if (question?.data?.lat !== undefined && question?.data?.lng !== undefined) {
+		return { latitude: question.data.lat, longitude: question.data.lng };
+	}
+
+	if (question?.id === "thermometer") {
+		return {
+			latitude: question?.data?.latA ?? 0,
+			longitude: question?.data?.lngA ?? 0,
+		};
+	}
+
+	return { latitude: 0, longitude: 0 };
+};
+
+const toMultiplayerType = (question: any) => {
+	if (question?.id === "matching") {
+		return question?.data?.type === "zone" || question?.data?.type === "custom-zone"
+			? "matching-zone"
+			: "matching-nearest";
+	}
+
+	if (question?.id === "measuring") {
+		return "measuring-distance";
+	}
+
+	return question?.id ?? "radius";
+};
 
 export function MultiplayerWrapper({ children }: { children: React.ReactNode }) {
 	const user = useStore(authUser);
 	const sessionId = useStore(currentSessionId);
 	const role = useStore(currentUserRole);
 	const syncedQuestions = useStore(sessionQuestions);
+	const localQuestions = useStore(mapQuestions);
 	const settings = useStore(sessionSettings);
-	const phase = useStore(gamePhase);
 	const [showSessionManager, setShowSessionManager] = useState(false);
 	const [currentLocation, setCurrentLocation] = useState<
 		{ latitude: number; longitude: number } | undefined
 	>();
 	const [playerId, setPlayerId] = useState<string | null>(null);
-	const answeringQuestionIdsRef = useRef<Set<string>>(new Set());
+	const submittedQuestionKeysRef = useRef<Set<string>>(new Set());
 
 	// Subscribe to realtime updates when in a session
 	useRealtimePlayers();
 	useRealtimeQuestions();
 	useRealtimeTimers();
-	useRealtimeGamePhase();
 
 	// Get player ID from current session
 	useEffect(() => {
 		if (!sessionId || !user) {
 			setPlayerId(null);
 			sessionSettings.set(null);
-			gamePhase.set("waiting");
-			phaseStartedAt.set(null);
 			return;
 		}
 
 		// Fetch the player ID for current user in this session
 		supabase
 			.from("players")
-			.select("id, role, sessions(settings, game_phase, phase_started_at)")
+			.select("id, sessions(settings)")
 			.eq("session_id", sessionId)
 			.eq("user_id", user.id)
 			.single()
@@ -62,10 +85,7 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 				}
 				if (data) {
 					setPlayerId(data.id);
-					currentUserRole.set(data.role ?? null);
 					sessionSettings.set(data?.sessions?.settings ?? null);
-					gamePhase.set(data?.sessions?.game_phase ?? "waiting");
-					phaseStartedAt.set(data?.sessions?.phase_started_at ?? null);
 				}
 			});
 	}, [sessionId, user]);
@@ -85,9 +105,7 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 			(position) => {
 				const { latitude, longitude } = position.coords;
 				setCurrentLocation({ latitude, longitude });
-				if (role !== "hider") {
-					updatePlayerLocation(playerId, latitude, longitude);
-				}
+				updatePlayerLocation(playerId, latitude, longitude);
 			},
 			(error) => {
 				console.error("Location error:", error);
@@ -99,9 +117,7 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 			(position) => {
 				const { latitude, longitude } = position.coords;
 				setCurrentLocation({ latitude, longitude });
-				if (role !== "hider") {
-					updatePlayerLocation(playerId, latitude, longitude);
-				}
+				updatePlayerLocation(playerId, latitude, longitude);
 			},
 			(error) => {
 				console.error("Location watch error:", error);
@@ -116,7 +132,7 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 		return () => {
 			navigator.geolocation.clearWatch(watchId);
 		};
-	}, [sessionId, playerId, role]);
+	}, [sessionId, playerId]);
 
 	// Show session manager if user is logged in but no session selected
 	useEffect(() => {
@@ -125,27 +141,9 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 		}
 	}, [user, sessionId]);
 
-	// Never expose local hider marker state for seekers in multiplayer.
 	useEffect(() => {
-		if (sessionId && role === "seeker") {
-			hiderMode.set(false);
-		}
-	}, [sessionId, role]);
-
-	// Force all clients back to lobby when game ends.
-	useEffect(() => {
-		if (!sessionId || phase !== "ended") return;
-
-		sessionPlayers.set([]);
-		sessionQuestions.set([]);
-		sessionTimers.set([]);
-		sessionSettings.set(null);
-		phaseStartedAt.set(null);
-		gamePhase.set("waiting");
-		currentUserRole.set(null);
-		currentSessionId.set(null);
-		setShowSessionManager(true);
-	}, [sessionId, phase]);
+		submittedQuestionKeysRef.current.clear();
+	}, [sessionId]);
 
 	// Keep map boundary calculations in sync by applying shared question payloads.
 	useEffect(() => {
@@ -160,28 +158,48 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 		mapQuestions.set(sharedPayloads as any);
 	}, [sessionId, syncedQuestions]);
 
-	// Keep hider auto-answer behavior even without the old hider dashboard UI.
+	// Allow seekers to ask via original UI (sidebar/right-click) by syncing local questions to multiplayer.
 	useEffect(() => {
-		if (!sessionId || role !== "hider" || !currentLocation) return;
+		if (!sessionId || !user || role !== "seeker") return;
 
-		const unanswered = syncedQuestions.filter(
-			(q: any) => q.answer === "Waiting for answer..."
+		const remoteKeys = new Set(
+			syncedQuestions
+				.map((q: any) => q?.question_data?.key)
+				.filter((key: any) => key !== undefined && key !== null)
 		);
 
-		for (const question of unanswered) {
-			if (answeringQuestionIdsRef.current.has(question.id)) continue;
-			answeringQuestionIdsRef.current.add(question.id);
+		for (const question of localQuestions as any[]) {
+			const enabledTypes = settings?.enabledQuestionTypes;
+			if (enabledTypes && enabledTypes.length > 0 && !enabledTypes.includes(question?.id)) {
+				continue;
+			}
 
-			computeQuestionAnswer(question, currentLocation)
-				.then((answer) => updateQuestionAnswer(question.id, answer))
-				.catch((error) => {
-					console.error("Failed to auto-answer question:", error);
-				})
-				.finally(() => {
-					answeringQuestionIdsRef.current.delete(question.id);
-				});
+			const localKey = question?.key;
+			if (localKey === undefined || localKey === null) continue;
+			if (remoteKeys.has(localKey)) continue;
+
+			const submitKey = `${sessionId}:${localKey}`;
+			if (submittedQuestionKeysRef.current.has(submitKey)) continue;
+			submittedQuestionKeysRef.current.add(submitKey);
+
+			const location = getQuestionLocation(question);
+			const questionType = toMultiplayerType(question);
+			const label = `${question.id} question`;
+
+			addQuestion(
+				sessionId,
+				user.id,
+				questionType,
+				label,
+				location,
+				"Waiting for answer...",
+				question
+			).catch((error) => {
+				console.error("Failed to sync local question:", error);
+				submittedQuestionKeysRef.current.delete(submitKey);
+			});
 		}
-	}, [sessionId, role, currentLocation, syncedQuestions]);
+	}, [sessionId, user, role, localQuestions, syncedQuestions, settings]);
 
 	return (
 		<ErrorBoundary>
@@ -190,10 +208,9 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 			{/* Multiplayer UI overlays */}
 			{sessionId && (
 				<ErrorBoundary>
-					<HidingTimer />
-					<SeekingTimer />
-					<QuestionPanel currentLocation={currentLocation} />
 					<TimerPanel />
+					<HiderPanel currentLocation={currentLocation} />
+					<QuestionPanel currentLocation={currentLocation} />
 				</ErrorBoundary>
 			)}
 

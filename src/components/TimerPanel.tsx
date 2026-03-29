@@ -44,13 +44,7 @@ export function TimerPanel() {
 
 	const handleToggleTimer = async (timer: TimerData) => {
 		try {
-			if (timer.is_active) {
-				const elapsed = Date.now() - new Date(timer.started_at).getTime();
-				const remaining = Math.max(0, timer.duration_ms - elapsed);
-				await updateTimer(timer.id, false, remaining);
-			} else {
-				await updateTimer(timer.id, true, timer.duration_ms, new Date().toISOString());
-			}
+			await updateTimer(timer.id, !timer.is_active);
 		} catch (error) {
 			console.error("Failed to toggle timer:", error);
 		}
@@ -65,12 +59,6 @@ export function TimerPanel() {
 	};
 
 	const getTimeRemaining = (timer: TimerData) => {
-		if (!timer.is_active) {
-			const minutes = Math.floor(timer.duration_ms / 60000);
-			const seconds = Math.floor((timer.duration_ms % 60000) / 1000);
-			return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-		}
-
 		const elapsed = Date.now() - new Date(timer.started_at).getTime();
 		const remaining = Math.max(0, timer.duration_ms - elapsed);
 		const minutes = Math.floor(remaining / 60000);
@@ -79,7 +67,7 @@ export function TimerPanel() {
 	};
 
 	return (
-		<div className="fixed top-20 right-4 z-[1140] rounded-lg border border-border bg-card shadow-lg">
+		<div className="fixed top-2 right-2 z-[1030] rounded-lg border border-border bg-card shadow-lg">
 			{/* Header */}
 			<div
 				className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer hover:bg-accent"

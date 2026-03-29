@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useStore } from "@nanostores/react";
 import { authUser, currentSessionId, currentUserRole, sessionSettings } from "@/lib/multiplayer-context";
-import { baseTileLayer, followMe, hiderMode, linkHiderToGPS } from "@/lib/context";
+import { followMe, hiderMode, linkHiderToGPS, mapGeoLocation } from "@/lib/context";
 import { createSessionWithSettings, getOrCreatePlayer, getSessionByInviteCode } from "@/lib/multiplayer-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,6 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 	const [enabledQuestionTypes, setEnabledQuestionTypes] = useState<string[]>(
 		QUESTION_TYPE_OPTIONS.map((q) => q.id)
 	);
-	const [hidingDurationMinutes, setHidingDurationMinutes] = useState(30);
 
 	const joinLink = useMemo(() => {
 		if (!createdCode || typeof window === "undefined") return "";
@@ -68,9 +67,6 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 			if (Array.isArray(parsed?.enabledQuestionTypes)) {
 				setEnabledQuestionTypes(parsed.enabledQuestionTypes);
 			}
-			if (typeof parsed?.hidingDurationMinutes === "number") {
-				setHidingDurationMinutes(parsed.hidingDurationMinutes);
-			}
 		} catch {
 			// ignore malformed local storage
 		}
@@ -85,7 +81,7 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 		setError("");
 
 		try {
-			const settings = { enabledQuestionTypes, hidingDurationMinutes };
+			const settings = { enabledQuestionTypes };
 			const { sessionId, inviteCode } = await createSessionWithSettings(user.id, settings);
 			currentSessionId.set(sessionId);
 			currentUserRole.set("hider");
@@ -95,9 +91,10 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 				window.localStorage.setItem(ROUND_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
 			}
 
-			hiderMode.set(false);
+			const fallback = mapGeoLocation.get().geometry.coordinates;
+			hiderMode.set({ latitude: fallback[1], longitude: fallback[0] });
 			followMe.set(true);
-			linkHiderToGPS.set(false);
+			linkHiderToGPS.set(true);
 
 			setCreatedCode(inviteCode);
 		} catch (err) {
@@ -123,7 +120,6 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 			currentSessionId.set(session.id);
 			currentUserRole.set("seeker");
 			sessionSettings.set((session as any).settings ?? null);
-			baseTileLayer.set("voyager");
 			followMe.set(true);
 			linkHiderToGPS.set(false);
 			hiderMode.set(false);
@@ -283,22 +279,6 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 							<p className="text-sm text-muted-foreground">
 								Create a new game session as the hider. Configure round question types, then share the invite code or generated link.
 							</p>
-
-							<div className="space-y-2">
-								<label className="text-sm font-medium">Hiding Time (minutes)</label>
-								<Input
-									type="number"
-									min="1"
-									max="120"
-									value={hidingDurationMinutes}
-									onChange={(e) => setHidingDurationMinutes(Math.max(1, parseInt(e.target.value) || 1))}
-									disabled={loading}
-									className="w-full"
-								/>
-								<p className="text-xs text-muted-foreground">
-									How long seekers must wait before they can start chasing (default: 30 minutes)
-								</p>
-							</div>
 
 							<div className="space-y-2">
 								<p className="text-sm font-medium">Round Settings: Enabled Question Types</p>

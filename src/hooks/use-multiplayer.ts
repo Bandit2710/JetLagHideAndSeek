@@ -7,10 +7,7 @@ import {
 	sessionTimers,
 	hiderLocation,
 	currentSessionId,
-	currentUserRole,
 	sessionStatus,
-	gamePhase,
-	phaseStartedAt,
 } from "@/lib/multiplayer-context";
 import type { PlayerData, QuestionData, TimerData } from "@/lib/multiplayer-context";
 
@@ -19,14 +16,6 @@ import type { PlayerData, QuestionData, TimerData } from "@/lib/multiplayer-cont
  */
 export function useRealtimePlayers() {
 	const sessionId = useStore(currentSessionId);
-	const role = useStore(currentUserRole);
-
-	const sanitizePlayers = (players: PlayerData[]) => {
-		if (role === "hider") return players;
-		return players.map((p: any) =>
-			p.role === "hider" ? { ...p, current_location: null } : p
-		);
-	};
 
 	useEffect(() => {
 		if (!sessionId) return;
@@ -38,7 +27,7 @@ export function useRealtimePlayers() {
 				.eq("session_id", sessionId);
 
 			if (data) {
-				sessionPlayers.set(sanitizePlayers(data as PlayerData[]));
+				sessionPlayers.set(data as PlayerData[]);
 			}
 		};
 
@@ -62,7 +51,7 @@ export function useRealtimePlayers() {
 						.eq("session_id", sessionId);
 
 					if (data) {
-						sessionPlayers.set(sanitizePlayers(data as PlayerData[]));
+						sessionPlayers.set(data as PlayerData[]);
 					}
 
 					// If hider's location changed, update hider location
@@ -79,7 +68,7 @@ export function useRealtimePlayers() {
 		return () => {
 			channel.unsubscribe();
 		};
-	}, [sessionId, role]);
+	}, [sessionId]);
 }
 
 /**
@@ -212,41 +201,6 @@ export function useHiderLocation() {
 					if (player.role === "hider" && player.current_location) {
 						hiderLocation.set(player.current_location);
 					}
-				}
-			)
-			.subscribe();
-
-		return () => {
-			channel.unsubscribe();
-		};
-	}, [sessionId]);
-}
-
-/**
- * Subscribe to real-time game phase updates
- */
-export function useRealtimeGamePhase() {
-	const sessionId = useStore(currentSessionId);
-
-	useEffect(() => {
-		if (!sessionId) return;
-
-		const channel = supabase
-			.channel(`session:${sessionId}:game-phase`)
-			.on(
-				"postgres_changes",
-				{
-					event: "UPDATE",
-					schema: "public",
-					table: "sessions",
-					filter: `id=eq.${sessionId}`,
-				},
-				(payload: any) => {
-					const session = payload.new as any;
-					if (session.game_phase) {
-						gamePhase.set(session.game_phase);
-					}
-					phaseStartedAt.set(session.phase_started_at ?? null);
 				}
 			)
 			.subscribe();
