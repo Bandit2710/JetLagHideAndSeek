@@ -7,7 +7,6 @@ import { Marker, Polyline } from "react-leaflet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
     autoSave,
-    hiderMode,
     mapDragInProgress,
     questionModified,
     questions,
@@ -17,7 +16,6 @@ import {
 } from "@/lib/context";
 import type { ICON_COLORS } from "@/maps/api";
 
-import { LatitudeLongitude } from "./LatLngPicker";
 import {
     MatchingQuestionComponent,
     MeasuringQuestionComponent,
@@ -26,8 +24,6 @@ import {
     TentacleQuestionComponent,
     ThermometerQuestionComponent,
 } from "./QuestionCards";
-import { Button } from "./ui/button";
-import { SidebarMenu } from "./ui/sidebar-l";
 
 let isDragging = false;
 
@@ -47,7 +43,6 @@ const ColoredMarker = ({
     sub?: string;
 }) => {
     const $questions = useStore(questions);
-    const $hiderMode = useStore(hiderMode);
     const $autoSave = useStore(autoSave);
     const [open, setOpen] = useState(false);
 
@@ -90,29 +85,6 @@ const ColoredMarker = ({
                 }}
             />
             <DialogContent className="!bg-[hsl(var(--sidebar-background))] !text-white">
-                {questionKey === -1 && $hiderMode !== false && (
-                    <>
-                        <h2 className="text-center text-2xl font-bold font-poppins">
-                            {sub}
-                        </h2>
-                        <SidebarMenu>
-                            <LatitudeLongitude
-                                latitude={$hiderMode.latitude}
-                                longitude={$hiderMode.longitude}
-                                inlineEdit
-                                onChange={(latitude, longitude) => {
-                                    hiderMode.set({
-                                        latitude:
-                                            latitude ?? $hiderMode.latitude,
-                                        longitude:
-                                            longitude ?? $hiderMode.longitude,
-                                    });
-                                }}
-                                label="Hider Location"
-                            />
-                        </SidebarMenu>
-                    </>
-                )}
                 {$questions
                     .filter((q) => q.key === questionKey)
                     .map((q) => {
@@ -175,17 +147,6 @@ const ColoredMarker = ({
                                 return null;
                         }
                     })}
-                {questionKey === -1 && (
-                    <Button // If it's the hider mode marker
-                        onClick={() => {
-                            hiderMode.set(false);
-                        }}
-                        variant="destructive"
-                        className="font-semibold font-poppins"
-                    >
-                        Disable
-                    </Button>
-                )}
                 {!$autoSave && (
                     <button
                         onClick={save}
@@ -208,6 +169,7 @@ export const DraggableMarkers = () => {
             {$questions.map((question) => {
                 if (!question.data) return null;
                 if (!question.data.drag) return null;
+                if (question.key === -1) return null;
                 if (
                     question.id === "matching" &&
                     question.data.type === "custom-zone"
