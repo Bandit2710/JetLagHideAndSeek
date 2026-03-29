@@ -8,9 +8,10 @@ import {
 } from "@/hooks/use-multiplayer";
 import { SessionManager } from "@/components/SessionManager";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { addQuestion, updatePlayerLocation } from "@/lib/multiplayer-api";
+import { addQuestion, updatePlayerLocation, updateQuestionAnswer } from "@/lib/multiplayer-api";
 import { supabase } from "@/lib/supabase";
 import { questions as mapQuestions } from "@/lib/context";
+import { computeQuestionAnswer } from "@/lib/question-answerer";
 
 const getQuestionLocation = (question: any) => {
 	if (question?.data?.lat !== undefined && question?.data?.lng !== undefined) {
@@ -53,6 +54,7 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 	>();
 	const [playerId, setPlayerId] = useState<string | null>(null);
 	const submittedQuestionKeysRef = useRef<Set<string>>(new Set());
+	const autoAnsweringQuestionIdsRef = useRef<Set<string>>(new Set());
 
 	// Subscribe to realtime updates when in a session
 	useRealtimePlayers();
@@ -191,6 +193,32 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 			});
 		}
 	}, [sessionId, user, role, localQuestions, syncedQuestions]);
+
+	// Auto-answer unanswered questions in the background when this client is the hider.
+	useEffect(() => {
+		if (!sessionId || role !== "hider" || !currentLocation) return;
+
+		const unansweredQuestions = (syncedQuestions as any[]).filter(
+			(q) => q?.answer === "Waiting for answer..."
+		);
+
+		for (const question of unansweredQuestions) {
+			const questionId = question?.id;
+			if (!questionId) continue;
+			if (autoAnsweringQuestionIdsRef.current.has(questionId)) continue;
+
+			autoAnsweringQuestionIdsRef.current.add(questionId);
+
+			computeQuestionAnswer(question, currentLocation)
+				.then((answer) => updateQuestionAnswer(questionId, answer))
+				.catch((error) => {
+					console.error("Failed to auto-answer question:", error);
+				})
+				.finally(() => {
+					autoAnsweringQuestionIdsRef.current.delete(questionId);
+				});
+		}
+	}, [sessionId, role, syncedQuestions, currentLocation]);
 
 	return (
 		<ErrorBoundary>
