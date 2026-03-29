@@ -9,9 +9,9 @@ import {
 	type QuestionData,
 } from "@/lib/multiplayer-context";
 import { useRealtimeQuestions } from "@/hooks/use-multiplayer";
-import { addQuestion } from "@/lib/multiplayer-api";
+import { addQuestion, createQuestionTimer } from "@/lib/multiplayer-api";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ChevronDown, Send, PanelBottomOpen } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 
@@ -40,8 +40,8 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 
 	const [collapsed, setCollapsed] = useState(false);
 	const [showNewQuestion, setShowNewQuestion] = useState(false);
-	const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
-
+	const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);\tconst [pendingQuestion, setPendingQuestion] = useState<{ type: string; text: string } | null>(null);
+\tconst [isSubmitting, setIsSubmitting] = useState(false);
 	useRealtimeQuestions();
 
 	const selectedQuestionData = questions.find((q: QuestionData) => q.id === selectedQuestion);
@@ -95,7 +95,8 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 		const payload = payloadByType[questionType];
 
 		try {
-			await addQuestion(
+			setIsSubmitting(true);
+			const createdQuestion = await addQuestion(
 				sessionId,
 				user.id,
 				questionType,
@@ -105,9 +106,25 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 				payload
 			);
 
+			// Extract timer type (handle matching and measuring variants)
+			let timerType = questionType;
+			if (questionType.startsWith("matching-")) {
+				timerType = "matching";
+			} else if (questionType.startsWith("measuring-")) {
+				timerType = "measuring";
+			}
+
+			// Create question timer
+			if (createdQuestion?.id) {
+				await createQuestionTimer(sessionId, createdQuestion.id, timerType);
+			}
+
 			setShowNewQuestion(false);
+			setPendingQuestion(null);
 		} catch (error) {
 			console.error("Failed to ask question:", error);
+		} finally {
+			setIsSubmitting(false);
 		}
 	};
 
@@ -221,7 +238,7 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 									variant="outline"
 									className="w-full justify-start h-auto py-2"
 									onClick={() => {
-										handleAskQuestion(q.type, q.text);
+										setPendingQuestion({ type: q.type, text: q.text });
 									}}
 								>
 									Add {q.text}
@@ -236,7 +253,56 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 				</Dialog>
 			</DrawerContent>
 		</Drawer>
+		{/* Confirmation dialog for pending question */}
+		<Dialog open={pendingQuestion !== null} onOpenChange={(open) => !open && setPendingQuestion(null)}>
+			<DialogContent className="sm:max-w-[425px]">
+				<DialogHeader>
+					<DialogTitle>Confirm Question</DialogTitle>
+				</DialogHeader>
 
+				{pendingQuestion && (
+					<div className="space-y-4">
+						<div className="space-y-2">
+							<p className="text-sm text-muted-foreground">Question Type:</p>
+							<p className="text-lg font-semibold">{pendingQuestion.text}</p>
+						</div>
+
+						<div className="space-y-2">
+							<p className="text-sm text-muted-foreground">Location:</p>
+							{currentLocation && (
+								<p className="text-sm font-mono">
+									{currentLocation.latitude.toFixed(4)}, {currentLocation.longitude.toFixed(4)}
+								</p>
+							)}
+						</div>
+
+						<p className="text-xs text-muted-foreground">
+							Question will be automatically answered based on the hider's location.
+						</p>
+					</div>
+				)}
+
+				<DialogFooter>
+					<Button
+						variant="outline"
+						onClick={() => setPendingQuestion(null)}
+						disabled={isSubmitting}
+					>
+						Cancel
+					</Button>
+					<Button
+						onClick={() => {
+							if (pendingQuestion) {
+								handleAskQuestion(pendingQuestion.type, pendingQuestion.text);
+							}
+						}}
+						disabled={isSubmitting}
+					>
+						{isSubmitting ? "Sending..." : "Send Question"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 		{collapsed && (
 			<Button
 				className="fixed bottom-4 left-4 z-[1100] shadow-lg"

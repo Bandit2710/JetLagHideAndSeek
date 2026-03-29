@@ -330,6 +330,31 @@ export async function updateQuestionAnswer(questionId: string, answer: string) {
 }
 
 /**
+ * Delete a question and associated timers
+ */
+export async function deleteQuestion(questionId: string) {
+	// First delete any timers associated with this question
+	const { error: timerError } = await supabase
+		.from("timers")
+		.delete()
+		.eq("question_id", questionId);
+
+	if (timerError) {
+		console.error("Failed to delete timers for question:", timerError);
+	}
+
+	// Then delete the question itself
+	const { error } = await supabase
+		.from("questions")
+		.delete()
+		.eq("id", questionId);
+
+	if (error) {
+		throw new Error(`Failed to delete question: ${error.message}`);
+	}
+}
+
+/**
  * Create a timer for a specific question
  */
 export async function createQuestionTimer(

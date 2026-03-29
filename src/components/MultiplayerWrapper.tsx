@@ -9,7 +9,6 @@ import {
 } from "@/hooks/use-multiplayer";
 import { SessionManager } from "@/components/SessionManager";
 import { TimerPanel } from "@/components/TimerPanel";
-import { MultiplayerOptionsTab } from "@/components/MultiplayerOptionsTab";
 import { HidingTimer } from "@/components/HidingTimer";
 import { SeekingTimer } from "@/components/SeekingTimer";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -252,7 +251,6 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 					<HidingTimer />
 					<SeekingTimer />
 					<TimerPanel />
-					<MultiplayerOptionsTab />
 				</ErrorBoundary>
 			)}
 
