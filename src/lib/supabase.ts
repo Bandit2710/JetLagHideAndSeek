@@ -20,6 +20,7 @@ export type Database = {
 					created_at: string;
 					status: "waiting" | "active" | "ended";
 					hider_id: string | null;
+					settings: any | null;
 					invite_code: string;
 				};
 				Insert: {
@@ -27,11 +28,13 @@ export type Database = {
 					created_at?: string;
 					status?: "waiting" | "active" | "ended";
 					hider_id?: string | null;
+					settings?: any | null;
 					invite_code: string;
 				};
 				Update: {
 					status?: "waiting" | "active" | "ended";
 					hider_id?: string | null;
+					settings?: any | null;
 				};
 			};
 			players: {
@@ -75,6 +78,7 @@ export type Database = {
 					question_type: string;
 					question_text: string;
 					location: { latitude: number; longitude: number };
+					question_data: any | null;
 					answer: string;
 					created_at: string;
 				};
@@ -85,11 +89,13 @@ export type Database = {
 					question_type: string;
 					question_text: string;
 					location: { latitude: number; longitude: number };
+					question_data?: any | null;
 					answer: string;
 					created_at?: string;
 				};
 				Update: {
 					answer?: string;
+					question_data?: any | null;
 				};
 			};
 			timers: {

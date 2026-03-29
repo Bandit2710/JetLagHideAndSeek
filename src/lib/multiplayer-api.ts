@@ -40,6 +40,40 @@ export async function createSession(userId: string) {
 }
 
 /**
+ * Create a new multiplayer session with optional saved round settings
+ */
+export async function createSessionWithSettings(
+	userId: string,
+	settings?: { enabledQuestionTypes?: string[] }
+) {
+	const inviteCode = generateInviteCode();
+
+	const { data: session, error } = await supabase
+		.from("sessions")
+		.insert({
+			invite_code: inviteCode,
+			hider_id: userId,
+			settings: settings ?? null,
+		})
+		.select("id, settings")
+		.single();
+
+	if (error) {
+		throw new Error(`Failed to create session: ${error.message}`);
+	}
+
+	// Add creator as hider
+	await supabase.from("players").insert({
+		session_id: session.id,
+		user_id: userId,
+		username: "You",
+		role: "hider",
+	});
+
+	return { sessionId: session.id, inviteCode };
+}
+
+/**
  * Join an existing session
  */
 export async function joinSession(
@@ -84,7 +118,7 @@ export async function joinSession(
 export async function getSessionByInviteCode(inviteCode: string) {
 	const { data, error } = await supabase
 		.from("sessions")
-		.select("id, status")
+		.select("id, status, settings")
 		.eq("invite_code", inviteCode)
 		.single();
 
@@ -194,7 +228,8 @@ export async function addQuestion(
 	questionType: string,
 	questionText: string,
 	location: { latitude: number; longitude: number },
-	answer: string
+	answer: string,
+	questionData?: any
 ) {
 	const { data, error } = await supabase
 		.from("questions")
@@ -204,6 +239,7 @@ export async function addQuestion(
 			question_type: questionType,
 			question_text: questionText,
 			location,
+			question_data: questionData ?? null,
 			answer,
 		})
 		.select()

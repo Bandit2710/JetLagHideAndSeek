@@ -6,6 +6,7 @@ import {
 	authUser,
 	isHider,
 	sessionPlayers,
+	sessionSettings,
 } from "@/lib/multiplayer-context";
 import { useRealtimeQuestions, useRealtimePlayers } from "@/hooks/use-multiplayer";
 import { computeQuestionAnswer } from "@/lib/question-answerer";
@@ -13,18 +14,28 @@ import { updateQuestionAnswer } from "@/lib/multiplayer-api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { ChevronDown, ChevronUp, MapPin, Users, AlertCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, MapPin, Users, AlertCircle, PanelBottomOpen } from "lucide-react";
 import type { QuestionData, PlayerData } from "@/lib/multiplayer-context";
 
 export interface HiderPanelProps {
 	currentLocation?: { latitude: number; longitude: number };
 }
 
+const QUESTION_TYPE_LABELS: Record<string, string> = {
+	radius: "Radius",
+	thermometer: "Thermometer",
+	tentacles: "Tentacles",
+	matching: "Matching",
+	measuring: "Measuring",
+	"street-trace": "Street Trace",
+};
+
 export function HiderPanel({ currentLocation }: HiderPanelProps) {
 	const questions = useStore(sessionQuestions);
 	const players = useStore(sessionPlayers);
 	const sessionId = useStore(currentSessionId);
 	const hider = useStore(isHider);
+	const settings = useStore(sessionSettings);
 
 	const [collapsed, setCollapsed] = useState(false);
 	const [showLocationModal, setShowLocationModal] = useState(false);
@@ -42,6 +53,9 @@ export function HiderPanel({ currentLocation }: HiderPanelProps) {
 
 	const unansweredQuestions = questions.filter((q: QuestionData) => q.answer === "Waiting for answer...");
 	const seekers = players.filter((p: PlayerData) => p.role === "seeker");
+	const enabledTypes = settings?.enabledQuestionTypes;
+	const allTypes = ["radius", "thermometer", "tentacles", "matching", "measuring", "street-trace"];
+	const showAllEnabled = !enabledTypes || enabledTypes.length === 0 || enabledTypes.length === allTypes.length;
 
 	const handleAutoAnswer = async (question: QuestionData) => {
 		if (!sessionId || !currentLocation || processing.has(question.id)) return;
@@ -76,6 +90,7 @@ export function HiderPanel({ currentLocation }: HiderPanelProps) {
 	};
 
 	return (
+		<>
 		<Drawer open={!collapsed} onOpenChange={(open) => setCollapsed(!open)}>
 			<DrawerContent className="fixed bottom-0 left-0 right-0 max-h-[80vh] rounded-t-lg">
 				<DrawerHeader
@@ -93,6 +108,21 @@ export function HiderPanel({ currentLocation }: HiderPanelProps) {
 
 				{!collapsed && (
 					<div className="overflow-y-auto p-4 space-y-4 max-h-[calc(80vh-60px)]">
+						<div className="p-3 rounded-lg border border-border bg-muted/50">
+							<p className="text-xs font-medium mb-2">Round Settings</p>
+							{showAllEnabled ? (
+								<p className="text-sm text-muted-foreground">All question types enabled</p>
+							) : (
+								<div className="flex flex-wrap gap-1">
+									{enabledTypes?.map((type) => (
+										<span key={type} className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+											{QUESTION_TYPE_LABELS[type] ?? type}
+										</span>
+									))}
+								</div>
+							)}
+						</div>
+
 						{/* Location Display */}
 						{currentLocation && (
 							<div className="p-3 rounded-lg border border-border bg-muted/50">
@@ -322,5 +352,15 @@ export function HiderPanel({ currentLocation }: HiderPanelProps) {
 				</DialogContent>
 			</Dialog>
 		</Drawer>
+
+		{collapsed && (
+			<Button
+				className="fixed bottom-4 right-4 z-[1100] shadow-lg"
+				onClick={() => setCollapsed(false)}
+			>
+				<PanelBottomOpen size={16} /> Show Hider Panel
+			</Button>
+		)}
+		</>
 	);
 }

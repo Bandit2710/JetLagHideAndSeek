@@ -5,24 +5,38 @@ import {
 	currentSessionId,
 	authUser,
 	isSeeker,
+	sessionSettings,
 	type QuestionData,
 } from "@/lib/multiplayer-context";
 import { useRealtimeQuestions } from "@/hooks/use-multiplayer";
 import { addQuestion } from "@/lib/multiplayer-api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ChevronDown, ChevronUp, Send } from "lucide-react";
+import { ChevronDown, Send, PanelBottomOpen } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 
 export interface QuestionPanelProps {
 	currentLocation?: { latitude: number; longitude: number };
 }
 
+const QUESTION_TYPE_LABELS: Record<string, string> = {
+	radius: "Radius",
+	thermometer: "Thermometer",
+	tentacles: "Tentacles",
+	matching: "Matching",
+	measuring: "Measuring",
+	"street-trace": "Street Trace",
+};
+
 export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 	const questions = useStore(sessionQuestions);
 	const sessionId = useStore(currentSessionId);
 	const user = useStore(authUser);
 	const seeker = useStore(isSeeker);
+	const settings = useStore(sessionSettings);
+	const enabledTypes = settings?.enabledQuestionTypes;
+	const allTypes = ["radius", "thermometer", "tentacles", "matching", "measuring", "street-trace"];
+	const showAllEnabled = !enabledTypes || enabledTypes.length === 0 || enabledTypes.length === allTypes.length;
 
 	const [collapsed, setCollapsed] = useState(false);
 	const [showNewQuestion, setShowNewQuestion] = useState(false);
@@ -35,6 +49,51 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 	const handleAskQuestion = async (questionType: string, questionText: string) => {
 		if (!sessionId || !user || !currentLocation) return;
 
+		const payloadByType: Record<string, any> = {
+			radius: {
+				id: "radius",
+				key: Math.random(),
+				data: { lat: currentLocation.latitude, lng: currentLocation.longitude },
+			},
+			thermometer: {
+				id: "thermometer",
+				key: Math.random(),
+				data: {
+					latA: currentLocation.latitude,
+					lngA: currentLocation.longitude,
+					latB: currentLocation.latitude + 0.05,
+					lngB: currentLocation.longitude + 0.05,
+				},
+			},
+			tentacles: {
+				id: "tentacles",
+				key: Math.random(),
+				data: { lat: currentLocation.latitude, lng: currentLocation.longitude },
+			},
+			"matching-zone": {
+				id: "matching",
+				key: Math.random(),
+				data: { lat: currentLocation.latitude, lng: currentLocation.longitude, type: "zone" },
+			},
+			"matching-nearest": {
+				id: "matching",
+				key: Math.random(),
+				data: { lat: currentLocation.latitude, lng: currentLocation.longitude, type: "same-nearest-mcdonalds" },
+			},
+			"measuring-distance": {
+				id: "measuring",
+				key: Math.random(),
+				data: { lat: currentLocation.latitude, lng: currentLocation.longitude, type: "coastline" },
+			},
+			"street-trace": {
+				id: "street-trace",
+				key: Math.random(),
+				data: { lat: currentLocation.latitude, lng: currentLocation.longitude },
+			},
+		};
+
+		const payload = payloadByType[questionType];
+
 		try {
 			await addQuestion(
 				sessionId,
@@ -42,7 +101,8 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 				questionType,
 				questionText,
 				currentLocation,
-				"Waiting for answer..." // Will be updated by hider
+				"Waiting for answer...",
+				payload
 			);
 
 			setShowNewQuestion(false);
@@ -51,18 +111,28 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 		}
 	};
 
-	const presetQuestions = [
-		{ type: "radius", text: "Is the hider within 10km?" },
-		{ type: "matching-nearest", text: "Is closest to same POI?" },
-		{ type: "matching-zone", text: "Same prefecture?" },
-		{ type: "measuring-distance", text: "Distance to coast?" },
-	];
+	const questionTypes = [
+		{ type: "radius", text: "Radius" },
+		{ type: "thermometer", text: "Thermometer" },
+		{ type: "tentacles", text: "Tentacles" },
+		{ type: "matching-zone", text: "Matching (Zone)" },
+		{ type: "matching-nearest", text: "Matching (Nearest)" },
+		{ type: "measuring-distance", text: "Measuring" },
+		{ type: "street-trace", text: "Street Trace" },
+	].filter((q) => {
+		const enabled = settings?.enabledQuestionTypes;
+		if (!enabled || enabled.length === 0) return true;
+		if (q.type.startsWith("matching")) return enabled.includes("matching");
+		if (q.type.startsWith("measuring")) return enabled.includes("measuring");
+		return enabled.includes(q.type);
+	});
 
 	if (!seeker) {
 		return null;
 	}
 
 	return (
+		<>
 		<Drawer open={!collapsed} onOpenChange={(open) => setCollapsed(!open)}>
 			<DrawerContent className="fixed bottom-0 left-0 right-0 max-h-[80vh] rounded-t-lg">
 				<DrawerHeader className="cursor-pointer" onClick={() => setCollapsed(!collapsed)}>
@@ -77,6 +147,21 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 
 				{!collapsed && (
 					<div className="overflow-y-auto p-4 space-y-3 max-h-[calc(80vh-60px)]">
+						<div className="p-3 rounded-lg border border-border bg-muted/50">
+							<p className="text-xs font-medium mb-2">Round Settings</p>
+							{showAllEnabled ? (
+								<p className="text-sm text-muted-foreground">All question types enabled</p>
+							) : (
+								<div className="flex flex-wrap gap-1">
+									{enabledTypes?.map((type) => (
+										<span key={type} className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+											{QUESTION_TYPE_LABELS[type] ?? type}
+										</span>
+									))}
+								</div>
+							)}
+						</div>
+
 						{/* Ask new question button */}
 						<Button
 							onClick={() => setShowNewQuestion(true)}
@@ -130,7 +215,7 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 								Choose a question to ask at your current location:
 							</p>
 
-							{presetQuestions.map((q) => (
+							{questionTypes.map((q) => (
 								<Button
 									key={q.type}
 									variant="outline"
@@ -139,7 +224,7 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 										handleAskQuestion(q.type, q.text);
 									}}
 								>
-									{q.text}
+									Add {q.text}
 								</Button>
 							))}
 
@@ -151,5 +236,15 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 				</Dialog>
 			</DrawerContent>
 		</Drawer>
+
+		{collapsed && (
+			<Button
+				className="fixed bottom-4 left-4 z-[1100] shadow-lg"
+				onClick={() => setCollapsed(false)}
+			>
+				<PanelBottomOpen size={16} /> Show Seeker Panel
+			</Button>
+		)}
+		</>
 	);
 }

@@ -4,9 +4,12 @@ CREATE TABLE IF NOT EXISTS public.sessions (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   status TEXT DEFAULT 'waiting' NOT NULL CHECK (status IN ('waiting', 'active', 'ended')),
   hider_id UUID,
+  settings JSONB,
   invite_code TEXT UNIQUE NOT NULL,
   FOREIGN KEY (hider_id) REFERENCES auth.users(id) ON DELETE SET NULL
 );
+
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS settings JSONB;
 
 -- Create players table
 CREATE TABLE IF NOT EXISTS public.players (
@@ -28,9 +31,12 @@ CREATE TABLE IF NOT EXISTS public.questions (
   question_type TEXT NOT NULL,
   question_text TEXT NOT NULL,
   location JSONB NOT NULL,
+  question_data JSONB,
   answer TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
+
+ALTER TABLE public.questions ADD COLUMN IF NOT EXISTS question_data JSONB;
 
 -- Create timers table
 CREATE TABLE IF NOT EXISTS public.timers (
@@ -81,8 +87,7 @@ CREATE POLICY "Users can view sessions they're part of" ON public.sessions FOR S
 
 CREATE POLICY "Users can create sessions" ON public.sessions FOR INSERT
   WITH CHECK (
-    auth.role() = 'authenticated'
-    AND hider_id = auth.uid()
+    hider_id = auth.uid()
   );
 
 CREATE POLICY "Hider can update their session" ON public.sessions FOR UPDATE
@@ -97,7 +102,7 @@ CREATE POLICY "Users can view players in their sessions" ON public.players FOR S
   USING (public.is_session_member(session_id));
 
 CREATE POLICY "Users can insert themselves as a player" ON public.players FOR INSERT
-  WITH CHECK (user_id = auth.uid() AND auth.role() = 'authenticated');
+  WITH CHECK (user_id = auth.uid());
 
 CREATE POLICY "Users can update their own player data" ON public.players FOR UPDATE
   USING (user_id = auth.uid());
@@ -112,7 +117,6 @@ CREATE POLICY "Users can view questions in their sessions" ON public.questions F
 CREATE POLICY "Seekers can create questions" ON public.questions FOR INSERT
   WITH CHECK (
     seeker_id = auth.uid() 
-    AND auth.role() = 'authenticated'
     AND public.is_session_member(session_id)
   );
 

@@ -20,6 +20,19 @@ export function useRealtimePlayers() {
 	useEffect(() => {
 		if (!sessionId) return;
 
+		const loadPlayers = async () => {
+			const { data } = await supabase
+				.from("players")
+				.select("*")
+				.eq("session_id", sessionId);
+
+			if (data) {
+				sessionPlayers.set(data as PlayerData[]);
+			}
+		};
+
+		loadPlayers();
+
 		const channel = supabase
 			.channel(`session:${sessionId}:players`)
 			.on(
@@ -67,6 +80,20 @@ export function useRealtimeQuestions() {
 	useEffect(() => {
 		if (!sessionId) return;
 
+		const loadQuestions = async () => {
+			const { data } = await supabase
+				.from("questions")
+				.select("*")
+				.eq("session_id", sessionId)
+				.order("created_at", { ascending: false });
+
+			if (data) {
+				sessionQuestions.set(data as QuestionData[]);
+			}
+		};
+
+		loadQuestions();
+
 		const channel = supabase
 			.channel(`session:${sessionId}:questions`)
 			.on(
@@ -105,6 +132,20 @@ export function useRealtimeTimers() {
 
 	useEffect(() => {
 		if (!sessionId) return;
+
+		const loadTimers = async () => {
+			const { data } = await supabase
+				.from("timers")
+				.select("*")
+				.eq("session_id", sessionId)
+				.order("started_at", { ascending: true });
+
+			if (data) {
+				sessionTimers.set(data as TimerData[]);
+			}
+		};
+
+		loadTimers();
 
 		const channel = supabase
 			.channel(`session:${sessionId}:timers`)

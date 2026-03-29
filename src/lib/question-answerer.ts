@@ -17,7 +17,7 @@ export async function computeQuestionAnswer(
 	const questionType = question?.question_type;
 	const seekerLat = question?.location?.latitude ?? question?.lat;
 	const seekerLng = question?.location?.longitude ?? question?.lng;
-	const questionData = question?.data ?? {};
+	const questionData = question?.question_data?.data ?? question?.data ?? {};
 
 	const previousHiderMode = hiderMode.get();
 	hiderMode.set({ latitude: hiderLocation.latitude, longitude: hiderLocation.longitude });
@@ -71,6 +71,33 @@ export async function computeQuestionAnswer(
 			case "measuring-distance": {
 				// Measuring question: Distance to location
 				// Answer format: "X km" or "X miles"
+				const result = await hiderifyMeasuring({
+					...question,
+					...questionData,
+					lat: seekerLat,
+					lng: seekerLng,
+					type: questionData.type ?? question?.type ?? "coastline",
+					hiderCloser: questionData.hiderCloser ?? question?.hiderCloser ?? true,
+					unit: questionData.unit ?? question?.unit ?? "miles",
+				} as any);
+				const distance = Number((result as any)?.distance ?? result);
+				return `${Number.isFinite(distance) ? distance.toFixed(1) : "0.0"} km`;
+			}
+
+			case "matching": {
+				const result = await hiderifyMatching({
+					...question,
+					...questionData,
+					lat: seekerLat,
+					lng: seekerLng,
+					type: questionData.type ?? question?.type ?? "zone",
+					same: questionData.same ?? question?.same ?? true,
+					cat: questionData.cat ?? question?.cat ?? { adminLevel: 4 },
+				} as any);
+				return result?.same ? "YES" : "NO";
+			}
+
+			case "measuring": {
 				const result = await hiderifyMeasuring({
 					...question,
 					...questionData,

@@ -7,6 +7,7 @@ export const authSession = atom<Session | null>(null);
 export const currentSessionId = atom<string | null>(null);
 export const currentUserRole = atom<"hider" | "seeker" | null>(null);
 export const sessionStatus = atom<"waiting" | "active" | "ended">("waiting");
+export const sessionSettings = atom<{ enabledQuestionTypes?: string[] } | null>(null);
 
 // Player data
 export interface PlayerData {
@@ -29,6 +30,7 @@ export interface QuestionData {
 	question_type: string;
 	question_text: string;
 	location: { latitude: number; longitude: number };
+	question_data?: any;
 	answer: string;
 	created_at: string;
 }
