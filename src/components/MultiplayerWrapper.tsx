@@ -7,9 +7,6 @@ import {
 	useRealtimeTimers,
 } from "@/hooks/use-multiplayer";
 import { SessionManager } from "@/components/SessionManager";
-import { TimerPanel } from "@/components/TimerPanel";
-import { QuestionPanel } from "@/components/QuestionInterface";
-import { HiderPanel } from "@/components/HiderPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { addQuestion, updatePlayerLocation } from "@/lib/multiplayer-api";
 import { supabase } from "@/lib/supabase";
@@ -50,7 +47,6 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 	const role = useStore(currentUserRole);
 	const syncedQuestions = useStore(sessionQuestions);
 	const localQuestions = useStore(mapQuestions);
-	const settings = useStore(sessionSettings);
 	const [showSessionManager, setShowSessionManager] = useState(false);
 	const [currentLocation, setCurrentLocation] = useState<
 		{ latitude: number; longitude: number } | undefined
@@ -85,7 +81,7 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 				}
 				if (data) {
 					setPlayerId(data.id);
-					sessionSettings.set(data?.sessions?.settings ?? null);
+					sessionSettings.set(null);
 				}
 			});
 	}, [sessionId, user]);
@@ -169,11 +165,6 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 		);
 
 		for (const question of localQuestions as any[]) {
-			const enabledTypes = settings?.enabledQuestionTypes;
-			if (enabledTypes && enabledTypes.length > 0 && !enabledTypes.includes(question?.id)) {
-				continue;
-			}
-
 			const localKey = question?.key;
 			if (localKey === undefined || localKey === null) continue;
 			if (remoteKeys.has(localKey)) continue;
@@ -199,7 +190,7 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 				submittedQuestionKeysRef.current.delete(submitKey);
 			});
 		}
-	}, [sessionId, user, role, localQuestions, syncedQuestions, settings]);
+	}, [sessionId, user, role, localQuestions, syncedQuestions]);
 
 	return (
 		<ErrorBoundary>
@@ -208,9 +199,7 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 			{/* Multiplayer UI overlays */}
 			{sessionId && (
 				<ErrorBoundary>
-					<TimerPanel />
-					<HiderPanel currentLocation={currentLocation} />
-					<QuestionPanel currentLocation={currentLocation} />
+					{/* Panels removed: use left QuestionSidebar for gameplay controls */}
 				</ErrorBoundary>
 			)}
 

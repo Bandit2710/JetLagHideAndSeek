@@ -18,7 +18,6 @@ import {
     save,
     triggerLocalRefresh,
 } from "@/lib/context";
-import { currentSessionId, currentUserRole } from "@/lib/multiplayer-context";
 
 import { AddQuestionDialog } from "./AddQuestionDialog";
 import {
@@ -35,8 +34,6 @@ export const QuestionSidebar = () => {
     const $questions = useStore(questions);
     const $autoSave = useStore(autoSave);
     const $isLoading = useStore(isLoading);
-    const $currentSessionId = useStore(currentSessionId);
-    const $currentUserRole = useStore(currentUserRole);
 
     return (
         <Sidebar>
@@ -109,17 +106,11 @@ export const QuestionSidebar = () => {
                 <SidebarGroupContent>
                     <SidebarMenu data-tutorial-id="add-questions-buttons">
                         <SidebarMenuItem>
-                            {$currentSessionId && $currentUserRole === "seeker" ? (
-                                <SidebarMenuButton disabled>
-                                    Use Seeker Panel to Ask
+                            <AddQuestionDialog>
+                                <SidebarMenuButton disabled={$isLoading}>
+                                    Add Question
                                 </SidebarMenuButton>
-                            ) : (
-                                <AddQuestionDialog>
-                                    <SidebarMenuButton disabled={$isLoading}>
-                                        Add Question
-                                    </SidebarMenuButton>
-                                </AddQuestionDialog>
-                            )}
+                            </AddQuestionDialog>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
                             <a

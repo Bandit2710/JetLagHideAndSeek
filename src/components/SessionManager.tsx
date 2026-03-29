@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useStore } from "@nanostores/react";
 import { authUser, currentSessionId, currentUserRole, sessionSettings } from "@/lib/multiplayer-context";
-import { followMe, hiderMode, linkHiderToGPS, mapGeoLocation } from "@/lib/context";
+import { baseTileLayer, followMe, hiderMode, linkHiderToGPS, mapGeoLocation } from "@/lib/context";
 import { createSessionWithSettings, getOrCreatePlayer, getSessionByInviteCode } from "@/lib/multiplayer-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,15 +14,6 @@ export interface SessionManagerProps {
 }
 
 const JOIN_QUERY_PARAM = "join";
-const ROUND_SETTINGS_STORAGE_KEY = "multiplayerRoundSettings";
-const QUESTION_TYPE_OPTIONS = [
-	{ id: "radius", label: "Radius" },
-	{ id: "thermometer", label: "Thermometer" },
-	{ id: "tentacles", label: "Tentacles" },
-	{ id: "matching", label: "Matching" },
-	{ id: "measuring", label: "Measuring" },
-	{ id: "street-trace", label: "Street Trace" },
-];
 
 export function SessionManager({ open, onClose }: SessionManagerProps) {
 	const user = useStore(authUser);
@@ -35,9 +26,6 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 	const [createdCode, setCreatedCode] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
 	const [linkCopied, setLinkCopied] = useState(false);
-	const [enabledQuestionTypes, setEnabledQuestionTypes] = useState<string[]>(
-		QUESTION_TYPE_OPTIONS.map((q) => q.id)
-	);
 
 	const joinLink = useMemo(() => {
 		if (!createdCode || typeof window === "undefined") return "";
@@ -57,21 +45,6 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 		setInviteCode(codeFromUrl.toUpperCase());
 	}, [open, createdCode]);
 
-	useEffect(() => {
-		if (typeof window === "undefined") return;
-		const raw = window.localStorage.getItem(ROUND_SETTINGS_STORAGE_KEY);
-		if (!raw) return;
-
-		try {
-			const parsed = JSON.parse(raw);
-			if (Array.isArray(parsed?.enabledQuestionTypes)) {
-				setEnabledQuestionTypes(parsed.enabledQuestionTypes);
-			}
-		} catch {
-			// ignore malformed local storage
-		}
-	}, []);
-
 	if (!user) {
 		return null;
 	}
@@ -79,22 +52,19 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 	const handleCreateSession = async () => {
 		setLoading(true);
 		setError("");
+		const selectedTileLayer = baseTileLayer.get();
 
 		try {
-			const settings = { enabledQuestionTypes };
-			const { sessionId, inviteCode } = await createSessionWithSettings(user.id, settings);
+			const { sessionId, inviteCode } = await createSessionWithSettings(user.id);
 			currentSessionId.set(sessionId);
 			currentUserRole.set("hider");
-			sessionSettings.set(settings);
-
-			if (typeof window !== "undefined") {
-				window.localStorage.setItem(ROUND_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-			}
+			sessionSettings.set(null);
 
 			const fallback = mapGeoLocation.get().geometry.coordinates;
 			hiderMode.set({ latitude: fallback[1], longitude: fallback[0] });
 			followMe.set(true);
 			linkHiderToGPS.set(true);
+			baseTileLayer.set(selectedTileLayer);
 
 			setCreatedCode(inviteCode);
 		} catch (err) {
@@ -112,6 +82,7 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 
 		setLoading(true);
 		setError("");
+		const selectedTileLayer = baseTileLayer.get();
 
 		try {
 			const session = await getSessionByInviteCode(inviteCode.toUpperCase());
@@ -119,10 +90,11 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 
 			currentSessionId.set(session.id);
 			currentUserRole.set("seeker");
-			sessionSettings.set((session as any).settings ?? null);
+			sessionSettings.set(null);
 			followMe.set(true);
 			linkHiderToGPS.set(false);
 			hiderMode.set(false);
+			baseTileLayer.set(selectedTileLayer);
 
 			if (typeof window !== "undefined") {
 				const url = new URL(window.location.href);
@@ -167,16 +139,6 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 		} catch {
 			// Ignore canceled share dialog.
 		}
-	};
-
-	const toggleQuestionType = (typeId: string) => {
-		setEnabledQuestionTypes((prev) => {
-			if (prev.includes(typeId)) {
-				if (prev.length === 1) return prev;
-				return prev.filter((id) => id !== typeId);
-			}
-			return [...prev, typeId];
-		});
 	};
 
 	if (createdCode) {
@@ -277,27 +239,8 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 					{tab === "create" && (
 						<div className="space-y-4">
 							<p className="text-sm text-muted-foreground">
-								Create a new game session as the hider. Configure round question types, then share the invite code or generated link.
+								Create a new game session as the hider, then share the invite code or generated link.
 							</p>
-
-							<div className="space-y-2">
-								<p className="text-sm font-medium">Round Settings: Enabled Question Types</p>
-								<div className="grid grid-cols-2 gap-2">
-									{QUESTION_TYPE_OPTIONS.map((option) => (
-										<label key={option.id} className="flex items-center gap-2 text-sm">
-											<input
-												type="checkbox"
-												checked={enabledQuestionTypes.includes(option.id)}
-												onChange={() => toggleQuestionType(option.id)}
-											/>
-											{option.label}
-										</label>
-									))}
-								</div>
-								<p className="text-xs text-muted-foreground">
-									These settings are saved and reused for your next round setup.
-								</p>
-							</div>
 
 							<Button onClick={handleCreateSession} disabled={loading} className="w-full">
 								{loading ? "Creating..." : "Create Game"}

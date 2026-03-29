@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/dialog";
 import { SidebarMenuButton } from "@/components/ui/sidebar-l";
 import { addQuestion, isLoading, leafletMapContext } from "@/lib/context";
-import { sessionSettings } from "@/lib/multiplayer-context";
 
 export const AddQuestionDialog = ({
     children,
@@ -20,14 +19,7 @@ export const AddQuestionDialog = ({
     children: React.ReactNode;
 }) => {
     const $isLoading = useStore(isLoading);
-    const $sessionSettings = useStore(sessionSettings);
     const [open, setOpen] = React.useState(false);
-
-    const isEnabled = (id: string) => {
-        const enabled = $sessionSettings?.enabledQuestionTypes;
-        if (!enabled || enabled.length === 0) return true;
-        return enabled.includes(id);
-    };
 
     const runAddRadius = () => {
         const map = leafletMapContext.get();
@@ -153,7 +145,7 @@ export const AddQuestionDialog = ({
                         onClick={() => {
                             if (runAddRadius()) setOpen(false);
                         }}
-                        disabled={$isLoading || !isEnabled("radius")}
+                        disabled={$isLoading}
                     >
                         Add Radius
                     </SidebarMenuButton>
@@ -161,7 +153,7 @@ export const AddQuestionDialog = ({
                         onClick={() => {
                             if (runAddThermometer()) setOpen(false);
                         }}
-                        disabled={$isLoading || !isEnabled("thermometer")}
+                        disabled={$isLoading}
                     >
                         Add Thermometer
                     </SidebarMenuButton>
@@ -169,7 +161,7 @@ export const AddQuestionDialog = ({
                         onClick={() => {
                             if (runAddTentacles()) setOpen(false);
                         }}
-                        disabled={$isLoading || !isEnabled("tentacles")}
+                        disabled={$isLoading}
                     >
                         Add Tentacles
                     </SidebarMenuButton>
@@ -177,7 +169,7 @@ export const AddQuestionDialog = ({
                         onClick={() => {
                             if (runAddMatching()) setOpen(false);
                         }}
-                        disabled={$isLoading || !isEnabled("matching")}
+                        disabled={$isLoading}
                     >
                         Add Matching
                     </SidebarMenuButton>
@@ -185,7 +177,7 @@ export const AddQuestionDialog = ({
                         onClick={() => {
                             if (runAddMeasuring()) setOpen(false);
                         }}
-                        disabled={$isLoading || !isEnabled("measuring")}
+                        disabled={$isLoading}
                     >
                         Add Measuring
                     </SidebarMenuButton>
@@ -193,7 +185,7 @@ export const AddQuestionDialog = ({
                         onClick={() => {
                             if (runAddStreetTrace()) setOpen(false);
                         }}
-                        disabled={$isLoading || !isEnabled("street-trace")}
+                        disabled={$isLoading}
                     >
                         Add Street Trace
                     </SidebarMenuButton>

@@ -5,7 +5,6 @@ import {
 	currentSessionId,
 	authUser,
 	isSeeker,
-	sessionSettings,
 	type QuestionData,
 } from "@/lib/multiplayer-context";
 import { useRealtimeQuestions } from "@/hooks/use-multiplayer";
@@ -19,32 +18,17 @@ export interface QuestionPanelProps {
 	currentLocation?: { latitude: number; longitude: number };
 }
 
-const QUESTION_TYPE_LABELS: Record<string, string> = {
-	radius: "Radius",
-	thermometer: "Thermometer",
-	tentacles: "Tentacles",
-	matching: "Matching",
-	measuring: "Measuring",
-	"street-trace": "Street Trace",
-};
-
 export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 	const questions = useStore(sessionQuestions);
 	const sessionId = useStore(currentSessionId);
 	const user = useStore(authUser);
 	const seeker = useStore(isSeeker);
-	const settings = useStore(sessionSettings);
-	const enabledTypes = settings?.enabledQuestionTypes;
-	const allTypes = ["radius", "thermometer", "tentacles", "matching", "measuring", "street-trace"];
-	const showAllEnabled = !enabledTypes || enabledTypes.length === 0 || enabledTypes.length === allTypes.length;
 
 	const [collapsed, setCollapsed] = useState(false);
 	const [showNewQuestion, setShowNewQuestion] = useState(false);
 	const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
 
 	useRealtimeQuestions();
-
-	const selectedQuestionData = questions.find((q: QuestionData) => q.id === selectedQuestion);
 
 	const handleAskQuestion = async (questionType: string, questionText: string) => {
 		if (!sessionId || !user || !currentLocation) return;
@@ -119,13 +103,7 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 		{ type: "matching-nearest", text: "Matching (Nearest)" },
 		{ type: "measuring-distance", text: "Measuring" },
 		{ type: "street-trace", text: "Street Trace" },
-	].filter((q) => {
-		const enabled = settings?.enabledQuestionTypes;
-		if (!enabled || enabled.length === 0) return true;
-		if (q.type.startsWith("matching")) return enabled.includes("matching");
-		if (q.type.startsWith("measuring")) return enabled.includes("measuring");
-		return enabled.includes(q.type);
-	});
+	];
 
 	if (!seeker) {
 		return null;
@@ -147,21 +125,6 @@ export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
 
 				{!collapsed && (
 					<div className="overflow-y-auto p-4 space-y-3 max-h-[calc(80vh-60px)]">
-						<div className="p-3 rounded-lg border border-border bg-muted/50">
-							<p className="text-xs font-medium mb-2">Round Settings</p>
-							{showAllEnabled ? (
-								<p className="text-sm text-muted-foreground">All question types enabled</p>
-							) : (
-								<div className="flex flex-wrap gap-1">
-									{enabledTypes?.map((type) => (
-										<span key={type} className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
-											{QUESTION_TYPE_LABELS[type] ?? type}
-										</span>
-									))}
-								</div>
-							)}
-						</div>
-
 						{/* Ask new question button */}
 						<Button
 							onClick={() => setShowNewQuestion(true)}

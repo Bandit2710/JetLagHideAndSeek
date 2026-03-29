@@ -267,15 +267,7 @@ export const Map = ({ className }: { className?: string }) => {
                 // @ts-expect-error Typing doesn't update from react-contextmenu
                 contextmenu={true}
                 contextmenuWidth={140}
-                contextmenuItems={
-                    $sessionId && $role === "seeker"
-                        ? [
-                              {
-                                  text: "Use Seeker Panel to Ask Questions",
-                                  callback: () => {},
-                              },
-                          ]
-                        : [
+                contextmenuItems={[
                     {
                         text: "Add Radius",
                         callback: (e: any) =>
