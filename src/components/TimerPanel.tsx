@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useAtom } from "nanostores/react";
+import { useStore } from "@nanostores/react";
 import { sessionTimers, currentSessionId } from "@/lib/multiplayer-context";
 import { useRealtimeTimers } from "@/hooks/use-multiplayer";
 import { updateTimer, deleteTimer, createTimer } from "@/lib/multiplayer-api";
@@ -9,8 +9,8 @@ import { ChevronDown, ChevronUp, Plus, Trash2, Pause, Play } from "lucide-react"
 import type { TimerData } from "@/lib/multiplayer-context";
 
 export function TimerPanel() {
-	const [timers] = useAtom(sessionTimers);
-	const [sessionId] = useAtom(currentSessionId);
+	const timers = useStore(sessionTimers);
+	const sessionId = useStore(currentSessionId);
 	const [collapsed, setCollapsed] = useState(false);
 	const [showAddTimer, setShowAddTimer] = useState(false);
 	const [newTimerTitle, setNewTimerTitle] = useState("");
@@ -78,6 +78,7 @@ export function TimerPanel() {
 			</div>
 
 			{/* Content */}
+			{!collapsed && (
 				<div className="border-t border-border p-3 space-y-2 max-w-xs">
 					{timers.length === 0 ? (
 						<p className="text-xs text-muted-foreground">No timers yet</p>

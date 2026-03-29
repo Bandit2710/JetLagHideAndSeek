@@ -19,7 +19,7 @@ import { TutorialDialog } from "@/components/TutorialDialog";
 <Layout className="bg-jetlag">
     <SidebarProviderL client:load>
         <SidebarProviderR client:load defaultOpen={false}>
-            <QuestionSidebar client:only />
+            <QuestionSidebar client:only="react" />
             <main class="flex flex-col flex-grow group">
                 <div
                     class="flex justify-center"
@@ -41,7 +41,7 @@ import { TutorialDialog } from "@/components/TutorialDialog";
                             class="flex flex-shrink max-w-fit z-[1030] absolute left-4 right-0 m-auto group-[.fullscreen]:hidden"
                         >
                             <PlacePicker
-                                client:only
+                                client:only="react"
                                 className="m-4 overflow-hidden"
                             />
                         </div>
@@ -52,13 +52,13 @@ import { TutorialDialog } from "@/components/TutorialDialog";
                         </div>
                         <Map
                             className="w-full group-[.fullscreen]:w-full group-[.fullscreen]:h-full"
-                            client:only
+                            client:only="react"
                         />
                     </div>
                 </div>
             </main>
-            <ZoneSidebar client:only />
-            <TutorialDialog client:only />
+            <ZoneSidebar client:only="react" />
+            <TutorialDialog client:only="react" />
         </SidebarProviderR>
     </SidebarProviderL>
 </Layout>

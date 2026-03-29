@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useAtom } from "nanostores/react";
+import { useStore } from "@nanostores/react";
 import {
 	sessionQuestions,
 	currentSessionId,
@@ -19,10 +19,10 @@ export interface QuestionPanelProps {
 }
 
 export function QuestionPanel({ currentLocation }: QuestionPanelProps) {
-	const [questions] = useAtom(sessionQuestions);
-	const [sessionId] = useAtom(currentSessionId);
-	const [user] = useAtom(authUser);
-	const [seeker] = useAtom(isSeeker);
+	const questions = useStore(sessionQuestions);
+	const sessionId = useStore(currentSessionId);
+	const user = useStore(authUser);
+	const seeker = useStore(isSeeker);
 
 	const [collapsed, setCollapsed] = useState(false);
 	const [showNewQuestion, setShowNewQuestion] = useState(false);

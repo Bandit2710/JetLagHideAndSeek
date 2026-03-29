@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useAtom } from "nanostores/react";
+import { useStore } from "@nanostores/react";
 import {
 	sessionQuestions,
 	currentSessionId,
@@ -21,10 +21,10 @@ export interface HiderPanelProps {
 }
 
 export function HiderPanel({ currentLocation }: HiderPanelProps) {
-	const [questions] = useAtom(sessionQuestions);
-	const [players] = useAtom(sessionPlayers);
-	const [sessionId] = useAtom(currentSessionId);
-	const [hider] = useAtom(isHider);
+	const questions = useStore(sessionQuestions);
+	const players = useStore(sessionPlayers);
+	const sessionId = useStore(currentSessionId);
+	const hider = useStore(isHider);
 
 	const [collapsed, setCollapsed] = useState(false);
 	const [showLocationModal, setShowLocationModal] = useState(false);

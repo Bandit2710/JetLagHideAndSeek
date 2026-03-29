@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useAtom } from "nanostores/react";
+import { useStore } from "@nanostores/react";
 import { authUser, currentSessionId } from "@/lib/multiplayer-context";
 import {
 	useRealtimePlayers,
@@ -15,8 +15,8 @@ import { updatePlayerLocation } from "@/lib/multiplayer-api";
 import { supabase } from "@/lib/supabase";
 
 export function MultiplayerWrapper({ children }: { children: React.ReactNode }) {
-	const [user] = useAtom(authUser);
-	const [sessionId] = useAtom(currentSessionId);
+	const user = useStore(authUser);
+	const sessionId = useStore(currentSessionId);
 	const [showSessionManager, setShowSessionManager] = useState(false);
 	const [currentLocation, setCurrentLocation] = useState<
 		{ latitude: number; longitude: number } | undefined

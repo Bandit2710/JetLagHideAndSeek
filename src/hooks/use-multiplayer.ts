@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAtom } from "nanostores/react";
+import { useStore } from "@nanostores/react";
 import { supabase } from "@/lib/supabase";
 import {
 	sessionPlayers,
@@ -15,8 +15,7 @@ import type { PlayerData, QuestionData, TimerData } from "@/lib/multiplayer-cont
  * Subscribe to real-time player updates in a session
  */
 export function useRealtimePlayers() {
-	const [, setPlayers] = useAtom(sessionPlayers);
-	const [sessionId] = useAtom(currentSessionId);
+	const sessionId = useStore(currentSessionId);
 
 	useEffect(() => {
 		if (!sessionId) return;
@@ -39,7 +38,7 @@ export function useRealtimePlayers() {
 						.eq("session_id", sessionId);
 
 					if (data) {
-						setPlayers(data as PlayerData[]);
+						sessionPlayers.set(data as PlayerData[]);
 					}
 
 					// If hider's location changed, update hider location
@@ -56,15 +55,14 @@ export function useRealtimePlayers() {
 		return () => {
 			channel.unsubscribe();
 		};
-	}, [sessionId, setPlayers]);
+	}, [sessionId]);
 }
 
 /**
  * Subscribe to real-time question updates in a session
  */
 export function useRealtimeQuestions() {
-	const [, setQuestions] = useAtom(sessionQuestions);
-	const [sessionId] = useAtom(currentSessionId);
+	const sessionId = useStore(currentSessionId);
 
 	useEffect(() => {
 		if (!sessionId) return;
@@ -87,7 +85,7 @@ export function useRealtimeQuestions() {
 						.order("created_at", { ascending: false });
 
 					if (data) {
-						setQuestions(data as QuestionData[]);
+						sessionQuestions.set(data as QuestionData[]);
 					}
 				}
 			)
@@ -96,15 +94,14 @@ export function useRealtimeQuestions() {
 		return () => {
 			channel.unsubscribe();
 		};
-	}, [sessionId, setQuestions]);
+	}, [sessionId]);
 }
 
 /**
  * Subscribe to real-time timer updates in a session
  */
 export function useRealtimeTimers() {
-	const [, setTimers] = useAtom(sessionTimers);
-	const [sessionId] = useAtom(currentSessionId);
+	const sessionId = useStore(currentSessionId);
 
 	useEffect(() => {
 		if (!sessionId) return;
@@ -127,7 +124,7 @@ export function useRealtimeTimers() {
 						.order("started_at", { ascending: true });
 
 					if (data) {
-						setTimers(data as TimerData[]);
+						sessionTimers.set(data as TimerData[]);
 					}
 				}
 			)
@@ -136,15 +133,14 @@ export function useRealtimeTimers() {
 		return () => {
 			channel.unsubscribe();
 		};
-	}, [sessionId, setTimers]);
+	}, [sessionId]);
 }
 
 /**
  * Subscribe to hider's location (only hider sees this)
  */
 export function useHiderLocation() {
-	const [, setHiderLocation] = useAtom(hiderLocation);
-	const [sessionId] = useAtom(currentSessionId);
+	const sessionId = useStore(currentSessionId);
 
 	useEffect(() => {
 		if (!sessionId) return;
@@ -162,7 +158,7 @@ export function useHiderLocation() {
 				(payload: any) => {
 					const player = payload.new as any;
 					if (player.role === "hider" && player.current_location) {
-						setHiderLocation(player.current_location);
+						hiderLocation.set(player.current_location);
 					}
 				}
 			)
@@ -171,5 +167,5 @@ export function useHiderLocation() {
 		return () => {
 			channel.unsubscribe();
 		};
-	}, [sessionId, setHiderLocation]);
+	}, [sessionId]);
 }

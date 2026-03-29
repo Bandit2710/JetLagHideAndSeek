@@ -48,16 +48,42 @@ ALTER TABLE public.players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.timers ENABLE ROW LEVEL SECURITY;
 
+-- Helper to check whether the current user is a member of a session.
+-- SECURITY DEFINER avoids recursive RLS checks on public.players.
+CREATE OR REPLACE FUNCTION public.is_session_member(target_session_id UUID)
+RETURNS BOOLEAN
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.players p
+    WHERE p.session_id = target_session_id
+      AND p.user_id = auth.uid()
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.is_session_member(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_session_member(UUID) TO authenticated;
+
 -- RLS Policies for sessions
 DROP POLICY IF EXISTS "Users can view sessions they're part of" ON public.sessions;
 DROP POLICY IF EXISTS "Users can create sessions" ON public.sessions;
 DROP POLICY IF EXISTS "Hider can update their session" ON public.sessions;
 
 CREATE POLICY "Users can view sessions they're part of" ON public.sessions FOR SELECT
-  USING (id IN (SELECT session_id FROM public.players WHERE user_id = auth.uid()));
+  USING (
+    hider_id = auth.uid()
+    OR public.is_session_member(id)
+    OR auth.role() = 'authenticated'
+  );
 
 CREATE POLICY "Users can create sessions" ON public.sessions FOR INSERT
-  WITH CHECK (auth.role() = 'authenticated');
+  WITH CHECK (
+    auth.role() = 'authenticated'
+    AND hider_id = auth.uid()
+  );
 
 CREATE POLICY "Hider can update their session" ON public.sessions FOR UPDATE
   USING (hider_id = auth.uid());
@@ -68,7 +94,7 @@ DROP POLICY IF EXISTS "Users can insert themselves as a player" ON public.player
 DROP POLICY IF EXISTS "Users can update their own player data" ON public.players;
 
 CREATE POLICY "Users can view players in their sessions" ON public.players FOR SELECT
-  USING (session_id IN (SELECT session_id FROM public.players WHERE user_id = auth.uid()));
+  USING (public.is_session_member(session_id));
 
 CREATE POLICY "Users can insert themselves as a player" ON public.players FOR INSERT
   WITH CHECK (user_id = auth.uid() AND auth.role() = 'authenticated');
@@ -81,18 +107,13 @@ DROP POLICY IF EXISTS "Users can view questions in their sessions" ON public.que
 DROP POLICY IF EXISTS "Seekers can create questions" ON public.questions;
 
 CREATE POLICY "Users can view questions in their sessions" ON public.questions FOR SELECT
-  USING (session_id IN (SELECT session_id FROM public.players WHERE user_id = auth.uid()));
+  USING (public.is_session_member(session_id));
 
 CREATE POLICY "Seekers can create questions" ON public.questions FOR INSERT
   WITH CHECK (
     seeker_id = auth.uid() 
     AND auth.role() = 'authenticated'
-    AND EXISTS (
-      SELECT 1 FROM public.players 
-      WHERE session_id = questions.session_id 
-      AND user_id = auth.uid() 
-      AND role = 'seeker'
-    )
+    AND public.is_session_member(session_id)
   );
 
 -- RLS Policies for timers
@@ -101,15 +122,15 @@ DROP POLICY IF EXISTS "Anyone in session can create/update timers" ON public.tim
 DROP POLICY IF EXISTS "Anyone in session can update timers" ON public.timers;
 
 CREATE POLICY "Users can view timers in their sessions" ON public.timers FOR SELECT
-  USING (session_id IN (SELECT session_id FROM public.players WHERE user_id = auth.uid()));
+  USING (public.is_session_member(session_id));
 
 CREATE POLICY "Anyone in session can create/update timers" ON public.timers FOR INSERT
   WITH CHECK (
-    session_id IN (SELECT session_id FROM public.players WHERE user_id = auth.uid())
+    public.is_session_member(session_id)
   );
 
 CREATE POLICY "Anyone in session can update timers" ON public.timers FOR UPDATE
-  USING (session_id IN (SELECT session_id FROM public.players WHERE user_id = auth.uid()));
+  USING (public.is_session_member(session_id));
 
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_players_session ON public.players(session_id);

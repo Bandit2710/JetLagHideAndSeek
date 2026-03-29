@@ -133,11 +133,11 @@ const { className } = Astro.props;
         {pwaInfo && <Fragment set:html={pwaInfo.webManifest.linkTag} />}
     </head>
     <body class:list={[className, "dark"]}>
-        <AuthProvider client:only>
-            <MultiplayerWrapper client:only>
+        <AuthProvider client:only="react">
+            <MultiplayerWrapper client:only="react">
                 <slot />
             </MultiplayerWrapper>
         </AuthProvider>
-        <ToastContainer client:only />
+        <ToastContainer client:only="react" />
     </body>
 </html>

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAtom } from "nanostores/react";
+import { useStore } from "@nanostores/react";
 import { supabase } from "@/lib/supabase";
 import { authUser, authSession } from "@/lib/multiplayer-context";
 
@@ -8,15 +8,15 @@ import { authUser, authSession } from "@/lib/multiplayer-context";
  * If no user is logged in, creates an anonymous session automatically.
  */
 export function useAnonymousAuth() {
-	const [user, setUser] = useAtom(authUser);
-	const [session, setSession] = useAtom(authSession);
+	useStore(authUser);
+	useStore(authSession);
 
 	useEffect(() => {
 		// Check if already authenticated
 		supabase.auth.getSession().then(({ data: { session } }: any) => {
 			if (session?.user) {
-				setUser(session.user);
-				setSession(session);
+				authUser.set(session.user);
+				authSession.set(session);
 				return;
 			}
 
@@ -28,8 +28,8 @@ export function useAnonymousAuth() {
 				}
 
 				if (data.session?.user) {
-					setUser(data.session.user);
-					setSession(data.session);
+					authUser.set(data.session.user);
+					authSession.set(data.session);
 				}
 			});
 		});
@@ -38,12 +38,12 @@ export function useAnonymousAuth() {
 		const {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-			setSession(session);
-			setUser(session?.user ?? null);
+			authSession.set(session);
+			authUser.set(session?.user ?? null);
 		});
 
 		return () => {
 			subscription?.unsubscribe();
 		};
-	}, [setUser, setSession]);
+	}, []);
 }
