@@ -1,5 +1,6 @@
 import { useStore } from "@nanostores/react";
 import { bearing, destination, distance, point } from "@turf/turf";
+import { useEffect, useRef } from "react";
 import { useState } from "react";
 
 import { LatitudeLongitude } from "@/components/LatLngPicker";
@@ -36,6 +37,11 @@ export const ThermometerQuestionComponent = ({
     const $questions = useStore(questions);
     const $isLoading = useStore(isLoading);
     const [customDistanceKm, setCustomDistanceKm] = useState<string>("1");
+    const [trackingDistanceKm, setTrackingDistanceKm] = useState<string>("1");
+    const [distanceRunActive, setDistanceRunActive] = useState(false);
+    const [distanceRunCoveredKm, setDistanceRunCoveredKm] = useState(0);
+    const runStartRef = useRef<{ lat: number; lng: number } | null>(null);
+    const watchIdRef = useRef<number | null>(null);
 
     const $defaultUnit = useStore(defaultUnit);
     const DISTANCE_UNIT = $defaultUnit ?? "miles";
@@ -80,6 +86,71 @@ export const ThermometerQuestionComponent = ({
         data.latB = updatedEnd.geometry.coordinates[1];
         data.lngB = updatedEnd.geometry.coordinates[0];
         questionModified();
+    };
+
+    useEffect(() => {
+        return () => {
+            if (watchIdRef.current !== null) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+                watchIdRef.current = null;
+            }
+        };
+    }, []);
+
+    const stopDistanceRun = () => {
+        if (watchIdRef.current !== null) {
+            navigator.geolocation.clearWatch(watchIdRef.current);
+            watchIdRef.current = null;
+        }
+        runStartRef.current = null;
+        setDistanceRunActive(false);
+    };
+
+    const startDistanceRun = () => {
+        const targetKm = parseFloat(trackingDistanceKm);
+        if (!Number.isFinite(targetKm) || targetKm <= 0) return;
+        if (!("geolocation" in navigator)) return;
+
+        stopDistanceRun();
+        setDistanceRunCoveredKm(0);
+
+        watchIdRef.current = navigator.geolocation.watchPosition(
+            (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+
+                if (!runStartRef.current) {
+                    runStartRef.current = { lat, lng };
+                    data.latA = lat;
+                    data.lngA = lng;
+                    data.latB = lat;
+                    data.lngB = lng;
+                    questionModified();
+                    setDistanceRunActive(true);
+                    return;
+                }
+
+                data.latB = lat;
+                data.lngB = lng;
+                questionModified();
+
+                const covered = distance(
+                    point([runStartRef.current.lng, runStartRef.current.lat]),
+                    point([lng, lat]),
+                    { units: "kilometers" },
+                );
+
+                setDistanceRunCoveredKm(covered);
+
+                if (covered >= targetKm) {
+                    stopDistanceRun();
+                }
+            },
+            () => {
+                stopDistanceRun();
+            },
+            { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 },
+        );
     };
 
     return (
@@ -228,6 +299,47 @@ export const ThermometerQuestionComponent = ({
                     >
                         Apply
                     </Button>
+                </div>
+
+                <div className="mt-3 p-2 border rounded-md">
+                    <div className="text-xs text-muted-foreground mb-2">
+                        Distance run auto-complete
+                    </div>
+                    <div className="flex gap-2 items-center">
+                        <Input
+                            type="number"
+                            min={0}
+                            step="0.1"
+                            value={trackingDistanceKm}
+                            onChange={(e) => setTrackingDistanceKm(e.target.value)}
+                            disabled={!data.drag || $isLoading || distanceRunActive}
+                            className="w-24"
+                        />
+                        <span className="text-xs text-muted-foreground">km</span>
+                        {!distanceRunActive ? (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={!data.drag || $isLoading}
+                                onClick={startDistanceRun}
+                            >
+                                Start Run
+                            </Button>
+                        ) : (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={stopDistanceRun}
+                            >
+                                Stop
+                            </Button>
+                        )}
+                    </div>
+                    {distanceRunActive && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                            Covered {distanceRunCoveredKm.toFixed(2)} / {parseFloat(trackingDistanceKm || "0").toFixed(2)} km
+                        </p>
+                    )}
                 </div>
             </div>
 

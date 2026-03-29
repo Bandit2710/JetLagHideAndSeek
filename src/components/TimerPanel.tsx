@@ -79,7 +79,7 @@ export function TimerPanel() {
 	};
 
 	return (
-		<div className="fixed top-2 right-2 z-[1030] rounded-lg border border-border bg-card shadow-lg">
+		<div className="fixed top-20 right-4 z-[1140] rounded-lg border border-border bg-card shadow-lg">
 			{/* Header */}
 			<div
 				className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer hover:bg-accent"

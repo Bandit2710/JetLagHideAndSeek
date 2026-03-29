@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "@nanostores/react";
-import { authUser, currentSessionId, currentUserRole, sessionQuestions, sessionSettings, gamePhase, phaseStartedAt } from "@/lib/multiplayer-context";
+import { authUser, currentSessionId, currentUserRole, gamePhase, phaseStartedAt, sessionPlayers, sessionQuestions, sessionSettings, sessionTimers } from "@/lib/multiplayer-context";
 import {
 	useRealtimePlayers,
 	useRealtimeQuestions,
@@ -24,6 +24,7 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 	const role = useStore(currentUserRole);
 	const syncedQuestions = useStore(sessionQuestions);
 	const settings = useStore(sessionSettings);
+	const phase = useStore(gamePhase);
 	const [showSessionManager, setShowSessionManager] = useState(false);
 	const [currentLocation, setCurrentLocation] = useState<
 		{ latitude: number; longitude: number } | undefined
@@ -130,6 +131,21 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 			hiderMode.set(false);
 		}
 	}, [sessionId, role]);
+
+	// Force all clients back to lobby when game ends.
+	useEffect(() => {
+		if (!sessionId || phase !== "ended") return;
+
+		sessionPlayers.set([]);
+		sessionQuestions.set([]);
+		sessionTimers.set([]);
+		sessionSettings.set(null);
+		phaseStartedAt.set(null);
+		gamePhase.set("waiting");
+		currentUserRole.set(null);
+		currentSessionId.set(null);
+		setShowSessionManager(true);
+	}, [sessionId, phase]);
 
 	// Keep map boundary calculations in sync by applying shared question payloads.
 	useEffect(() => {

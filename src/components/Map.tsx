@@ -267,7 +267,15 @@ export const Map = ({ className }: { className?: string }) => {
                 // @ts-expect-error Typing doesn't update from react-contextmenu
                 contextmenu={true}
                 contextmenuWidth={140}
-                contextmenuItems={[
+                contextmenuItems={
+                    $sessionId && $role === "seeker"
+                        ? [
+                              {
+                                  text: "Use Seeker Panel to Ask Questions",
+                                  callback: () => {},
+                              },
+                          ]
+                        : [
                     {
                         text: "Add Radius",
                         callback: (e: any) =>
@@ -408,7 +416,7 @@ export const Map = ({ className }: { className?: string }) => {
                 />
             </MapContainer>
         ),
-        [map, $baseTileLayer, $thunderforestApiKey],
+        [map, $baseTileLayer, $thunderforestApiKey, $sessionId, $role],
     );
 
     useEffect(() => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "@nanostores/react";
 import {
 	currentSessionId,
@@ -7,7 +7,7 @@ import {
 	phaseStartedAt,
 	sessionSettings,
 } from "@/lib/multiplayer-context";
-import { startHidingPhase, startSeekingPhase } from "@/lib/multiplayer-api";
+import { endGame, startHidingPhase, startSeekingPhase } from "@/lib/multiplayer-api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,8 @@ export function HidingTimer() {
 	const settings = useStore(sessionSettings);
 	const [remaining, setRemaining] = useState<number | null>(null);
 	const [loading, setLoading] = useState(false);
+	const [ending, setEnding] = useState(false);
+	const autoTransitionedRef = useRef(false);
 
 	const hidingDurationMs = (settings?.hidingDurationMinutes ?? 30) * 60 * 1000;
 
@@ -26,6 +28,12 @@ export function HidingTimer() {
 	if (phase !== "waiting" && phase !== "hiding") return null;
 
 	useEffect(() => {
+		if (phase !== "hiding") {
+			setRemaining(null);
+			autoTransitionedRef.current = false;
+			return;
+		}
+
 		const interval = setInterval(() => {
 			if (!started) {
 				setRemaining(null);
@@ -40,13 +48,19 @@ export function HidingTimer() {
 			setRemaining(rem);
 
 			// Auto-transition to seeking when hiding time expires
-			if (rem <= 0 && role === "hider") {
-				startSeekingPhase(sessionId ?? "").catch(console.error);
+			if (rem <= 0 && !autoTransitionedRef.current) {
+				autoTransitionedRef.current = true;
+				gamePhase.set("seeking");
+				phaseStartedAt.set(new Date().toISOString());
+
+				if (role === "hider") {
+					startSeekingPhase(sessionId ?? "").catch(console.error);
+				}
 			}
 		}, 100);
 
 		return () => clearInterval(interval);
-	}, [started, hidingDurationMs, role, sessionId]);
+	}, [phase, started, hidingDurationMs, role, sessionId]);
 
 	const formatTime = (ms: number) => {
 		const totalSeconds = Math.floor(ms / 1000);
@@ -58,12 +72,29 @@ export function HidingTimer() {
 	const handleStartHiding = async () => {
 		if (!sessionId) return;
 		setLoading(true);
+		const now = new Date().toISOString();
+		gamePhase.set("hiding");
+		phaseStartedAt.set(now);
 		try {
 			await startHidingPhase(sessionId);
 		} catch (error) {
+			gamePhase.set("waiting");
+			phaseStartedAt.set(null);
 			console.error("Failed to start hiding:", error);
 		} finally {
 			setLoading(false);
+		}
+	};
+
+	const handleEndGame = async () => {
+		if (!sessionId) return;
+		setEnding(true);
+		try {
+			await endGame(sessionId);
+		} catch (error) {
+			console.error("Failed to end game:", error);
+		} finally {
+			setEnding(false);
 		}
 	};
 
@@ -71,7 +102,7 @@ export function HidingTimer() {
 	if (!started) {
 		if (role !== "hider") {
 			return (
-				<div className="fixed bottom-8 right-8 z-[1200]">
+				<div className="fixed top-4 left-1/2 -translate-x-1/2 z-[1150]">
 					<div className="rounded-lg border-2 border-border bg-card p-4 shadow-lg">
 						<p className="text-sm text-muted-foreground text-center">
 							Waiting for hider to start...
@@ -82,7 +113,7 @@ export function HidingTimer() {
 		}
 
 		return (
-			<div className="fixed bottom-8 right-8 z-[1200]">
+			<div className="fixed top-4 left-1/2 -translate-x-1/2 z-[1150]">
 				<div className="rounded-lg border-2 border-border bg-card p-4 shadow-lg">
 					<Button
 						onClick={handleStartHiding}
@@ -95,6 +126,14 @@ export function HidingTimer() {
 					<p className="text-xs text-muted-foreground text-center mt-2">
 						Seekers will be released in {settings?.hidingDurationMinutes ?? 30} minutes
 					</p>
+					<Button
+						variant="outline"
+						onClick={handleEndGame}
+						disabled={ending || loading}
+						className="w-full mt-2"
+					>
+						{ending ? "Ending..." : "End Game"}
+					</Button>
 				</div>
 			</div>
 		);
@@ -106,7 +145,7 @@ export function HidingTimer() {
 	const progress = remaining !== null ? ((hidingDurationMs - remaining) / hidingDurationMs) * 100 : 0;
 
 	return (
-		<div className="fixed bottom-8 right-8 z-[1200]">
+		<div className="fixed top-4 left-1/2 -translate-x-1/2 z-[1150]">
 			<div
 				className={cn(
 					"rounded-lg border-2 p-4 shadow-lg min-w-[200px]",
@@ -142,11 +181,21 @@ export function HidingTimer() {
 						/>
 					</div>
 					{role === "hider" && (
-						<p className="text-xs text-muted-foreground text-center">
-							{isFinished
-								? "Move to the seeking phase"
-								: "Hiders can start moving. Seekers will be released when time runs out."}
-						</p>
+						<>
+							<p className="text-xs text-muted-foreground text-center">
+								{isFinished
+									? "Move to the seeking phase"
+									: "Hiders can start moving. Seekers will be released when time runs out."}
+							</p>
+							<Button
+								variant="outline"
+								onClick={handleEndGame}
+								disabled={ending}
+								className="w-full"
+							>
+								{ending ? "Ending..." : "End Game"}
+							</Button>
+						</>
 					)}
 				</div>
 			</div>

@@ -57,7 +57,7 @@ export function SeekingTimer() {
 	};
 
 	return (
-		<div className="fixed bottom-8 right-8 z-40">
+		<div className="fixed top-4 left-1/2 -translate-x-1/2 z-[1150]">
 			<div className="rounded-lg border-2 border-primary bg-card p-4 min-w-[260px] shadow-lg">
 				<div className="flex flex-col gap-3">
 					<p className="text-xs text-muted-foreground text-center font-semibold uppercase">
