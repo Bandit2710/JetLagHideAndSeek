@@ -486,9 +486,8 @@ export const Map = ({ className }: { className?: string }) => {
     useEffect(() => {
         if (!map) return;
         const isSeekerInMultiplayer = !!$sessionId && $role === "seeker";
-        const isHiderInMultiplayer = !!$sessionId && $role === "hider";
-        const shouldShowFollowMarker = isSeekerInMultiplayer || ($followMe && !isHiderInMultiplayer);
-        const shouldWatchPosition = shouldShowFollowMarker || $linkHiderToGPS;
+        const shouldShowFollowMarker = $followMe || isSeekerInMultiplayer;
+        const shouldWatchPosition = shouldShowFollowMarker || (!$sessionId && $linkHiderToGPS);
 
         if (!shouldShowFollowMarker && followMeMarkerRef.current) {
             map.removeLayer(followMeMarkerRef.current);
@@ -512,7 +511,7 @@ export const Map = ({ className }: { className?: string }) => {
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
 
-                if ($linkHiderToGPS) {
+                if (!$sessionId && $linkHiderToGPS) {
                     hiderMode.set({
                         latitude: lat,
                         longitude: lng,
@@ -543,7 +542,9 @@ export const Map = ({ className }: { className?: string }) => {
             () => {
                 toast.error("Unable to access your location.");
                 followMe.set(false);
-                linkHiderToGPS.set(false);
+                if (!$sessionId) {
+                    linkHiderToGPS.set(false);
+                }
             },
             { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 },
         );

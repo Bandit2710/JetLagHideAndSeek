@@ -62,7 +62,7 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 
 			const fallback = mapGeoLocation.get().geometry.coordinates;
 			hiderMode.set({ latitude: fallback[1], longitude: fallback[0] });
-			followMe.set(false);
+			followMe.set(true);
 			linkHiderToGPS.set(true);
 			baseTileLayer.set(selectedTileLayer);
 
