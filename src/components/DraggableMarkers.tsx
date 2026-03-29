@@ -202,34 +202,9 @@ const ColoredMarker = ({
 export const DraggableMarkers = () => {
     useStore(triggerLocalRefresh);
     const $questions = useStore(questions);
-    const $hiderMode = useStore(hiderMode);
 
     return (
         <Fragment>
-            {$hiderMode !== false && (
-                <ColoredMarker
-                    color="green"
-                    key="hider"
-                    sub="Hider Location"
-                    questionKey={-1}
-                    latitude={$hiderMode.latitude}
-                    longitude={$hiderMode.longitude}
-                    onChange={(e) => {
-                        $hiderMode.latitude =
-                            e.target.getLatLng().lat ?? $hiderMode.latitude;
-                        $hiderMode.longitude =
-                            e.target.getLatLng().lng ?? $hiderMode.longitude;
-
-                        if (autoSave.get()) {
-                            hiderMode.set({
-                                ...$hiderMode,
-                            });
-                        } else {
-                            triggerLocalRefresh.set(Math.random());
-                        }
-                    }}
-                />
-            )}
             {$questions.map((question) => {
                 if (!question.data) return null;
                 if (!question.data.drag) return null;

@@ -7,6 +7,11 @@ export const QuestionDebugDetails = ({
     title?: string;
     showHider?: boolean;
 }) => {
+    void debug;
+    void title;
+    void showHider;
+    return null;
+
     if (!debug || typeof debug !== "object") return null;
 
     const entries = Object.entries(debug as Record<string, unknown>).filter(
