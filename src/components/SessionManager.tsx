@@ -38,6 +38,7 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 	const [enabledQuestionTypes, setEnabledQuestionTypes] = useState<string[]>(
 		QUESTION_TYPE_OPTIONS.map((q) => q.id)
 	);
+	const [hidingDurationMinutes, setHidingDurationMinutes] = useState(30);
 
 	const joinLink = useMemo(() => {
 		if (!createdCode || typeof window === "undefined") return "";
@@ -67,6 +68,9 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 			if (Array.isArray(parsed?.enabledQuestionTypes)) {
 				setEnabledQuestionTypes(parsed.enabledQuestionTypes);
 			}
+			if (typeof parsed?.hidingDurationMinutes === "number") {
+				setHidingDurationMinutes(parsed.hidingDurationMinutes);
+			}
 		} catch {
 			// ignore malformed local storage
 		}
@@ -81,7 +85,7 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 		setError("");
 
 		try {
-			const settings = { enabledQuestionTypes };
+			const settings = { enabledQuestionTypes, hidingDurationMinutes };
 			const { sessionId, inviteCode } = await createSessionWithSettings(user.id, settings);
 			currentSessionId.set(sessionId);
 			currentUserRole.set("hider");
@@ -279,6 +283,22 @@ export function SessionManager({ open, onClose }: SessionManagerProps) {
 							<p className="text-sm text-muted-foreground">
 								Create a new game session as the hider. Configure round question types, then share the invite code or generated link.
 							</p>
+
+							<div className="space-y-2">
+								<label className="text-sm font-medium">Hiding Time (minutes)</label>
+								<Input
+									type="number"
+									min="1"
+									max="120"
+									value={hidingDurationMinutes}
+									onChange={(e) => setHidingDurationMinutes(Math.max(1, parseInt(e.target.value) || 1))}
+									disabled={loading}
+									className="w-full"
+								/>
+								<p className="text-xs text-muted-foreground">
+									How long seekers must wait before they can start chasing (default: 30 minutes)
+								</p>
+							</div>
 
 							<div className="space-y-2">
 								<p className="text-sm font-medium">Round Settings: Enabled Question Types</p>

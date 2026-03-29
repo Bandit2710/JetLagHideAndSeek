@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 import type { ThermometerQuestion } from "@/maps/schema";
 
 import { QuestionCard } from "./base";
-import { QuestionDebugDetails } from "./debug";
 
 export const ThermometerQuestionComponent = ({
     data,
@@ -130,11 +129,6 @@ export const ThermometerQuestionComponent = ({
                     </span>
                 </div>
             )}
-
-            <QuestionDebugDetails
-                debug={(data as any).debug}
-                showHider={$hiderMode !== false}
-            />
 
             <div className="px-2 text-xs text-muted-foreground">
                 Tip: drag start/end pins on the map to adjust distance and

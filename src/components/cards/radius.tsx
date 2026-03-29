@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 import type { RadiusQuestion } from "@/maps/schema";
 
 import { QuestionCard } from "./base";
-import { QuestionDebugDetails } from "./debug";
 
 export const RadiusQuestionComponent = ({
     data,
@@ -94,10 +93,6 @@ export const RadiusQuestionComponent = ({
                     questionModified();
                 }}
                 disabled={!data.drag || $isLoading}
-            />
-            <QuestionDebugDetails
-                debug={(data as any).debug}
-                showHider={$hiderMode !== false}
             />
             <div className="flex gap-2 items-center p-2">
                 <Label

@@ -1,19 +1,22 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useStore } from "@nanostores/react";
-import { authUser, currentSessionId, currentUserRole, sessionQuestions, sessionSettings } from "@/lib/multiplayer-context";
+import { authUser, currentSessionId, currentUserRole, sessionQuestions, sessionSettings, gamePhase, phaseStartedAt } from "@/lib/multiplayer-context";
 import {
 	useRealtimePlayers,
 	useRealtimeQuestions,
 	useRealtimeTimers,
+	useRealtimeGamePhase,
 } from "@/hooks/use-multiplayer";
 import { SessionManager } from "@/components/SessionManager";
 import { TimerPanel } from "@/components/TimerPanel";
-import { QuestionPanel } from "@/components/QuestionInterface";
-import { HiderPanel } from "@/components/HiderPanel";
+import { MultiplayerOptionsTab } from "@/components/MultiplayerOptionsTab";
+import { HidingTimer } from "@/components/HidingTimer";
+import { SeekingTimer } from "@/components/SeekingTimer";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { addQuestion, updatePlayerLocation } from "@/lib/multiplayer-api";
+import { addQuestion, updatePlayerLocation, updateQuestionAnswer, createQuestionTimer } from "@/lib/multiplayer-api";
 import { supabase } from "@/lib/supabase";
 import { questions as mapQuestions } from "@/lib/context";
+import { computeQuestionAnswer } from "@/lib/question-answerer";
 
 const getQuestionLocation = (question: any) => {
 	if (question?.data?.lat !== undefined && question?.data?.lng !== undefined) {
@@ -57,24 +60,28 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 	>();
 	const [playerId, setPlayerId] = useState<string | null>(null);
 	const submittedQuestionKeysRef = useRef<Set<string>>(new Set());
+	const answeringQuestionIdsRef = useRef<Set<string>>(new Set());
 
 	// Subscribe to realtime updates when in a session
 	useRealtimePlayers();
 	useRealtimeQuestions();
 	useRealtimeTimers();
+	useRealtimeGamePhase();
 
 	// Get player ID from current session
 	useEffect(() => {
 		if (!sessionId || !user) {
 			setPlayerId(null);
 			sessionSettings.set(null);
+			gamePhase.set("waiting");
+			phaseStartedAt.set(null);
 			return;
 		}
 
 		// Fetch the player ID for current user in this session
 		supabase
 			.from("players")
-			.select("id, sessions(settings)")
+			.select("id, sessions(settings, game_phase, phase_started_at)")
 			.eq("session_id", sessionId)
 			.eq("user_id", user.id)
 			.single()
@@ -86,6 +93,8 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 				if (data) {
 					setPlayerId(data.id);
 					sessionSettings.set(data?.sessions?.settings ?? null);
+					gamePhase.set(data?.sessions?.game_phase ?? "waiting");
+					phaseStartedAt.set(data?.sessions?.phase_started_at ?? null);
 				}
 			});
 	}, [sessionId, user]);
@@ -105,7 +114,9 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 			(position) => {
 				const { latitude, longitude } = position.coords;
 				setCurrentLocation({ latitude, longitude });
-				updatePlayerLocation(playerId, latitude, longitude);
+				if (role !== "hider") {
+					updatePlayerLocation(playerId, latitude, longitude);
+				}
 			},
 			(error) => {
 				console.error("Location error:", error);
@@ -117,7 +128,9 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 			(position) => {
 				const { latitude, longitude } = position.coords;
 				setCurrentLocation({ latitude, longitude });
-				updatePlayerLocation(playerId, latitude, longitude);
+				if (role !== "hider") {
+					updatePlayerLocation(playerId, latitude, longitude);
+				}
 			},
 			(error) => {
 				console.error("Location watch error:", error);
@@ -132,7 +145,7 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 		return () => {
 			navigator.geolocation.clearWatch(watchId);
 		};
-	}, [sessionId, playerId]);
+	}, [sessionId, playerId, role]);
 
 	// Show session manager if user is logged in but no session selected
 	useEffect(() => {
@@ -194,12 +207,40 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 				location,
 				"Waiting for answer...",
 				question
-			).catch((error) => {
+			).then((createdQuestion) => {
+				// Create a timer for this question
+				createQuestionTimer(sessionId, createdQuestion.id, question.id).catch((error) => {
+					console.error("Failed to create timer for question:", error);
+				});
+			}).catch((error) => {
 				console.error("Failed to sync local question:", error);
 				submittedQuestionKeysRef.current.delete(submitKey);
 			});
 		}
 	}, [sessionId, user, role, localQuestions, syncedQuestions, settings]);
+
+	// Keep hider auto-answer behavior even without the old hider dashboard UI.
+	useEffect(() => {
+		if (!sessionId || role !== "hider" || !currentLocation) return;
+
+		const unanswered = syncedQuestions.filter(
+			(q: any) => q.answer === "Waiting for answer..."
+		);
+
+		for (const question of unanswered) {
+			if (answeringQuestionIdsRef.current.has(question.id)) continue;
+			answeringQuestionIdsRef.current.add(question.id);
+
+			computeQuestionAnswer(question, currentLocation)
+				.then((answer) => updateQuestionAnswer(question.id, answer))
+				.catch((error) => {
+					console.error("Failed to auto-answer question:", error);
+				})
+				.finally(() => {
+					answeringQuestionIdsRef.current.delete(question.id);
+				});
+		}
+	}, [sessionId, role, currentLocation, syncedQuestions]);
 
 	return (
 		<ErrorBoundary>
@@ -208,9 +249,10 @@ export function MultiplayerWrapper({ children }: { children: React.ReactNode }) 
 			{/* Multiplayer UI overlays */}
 			{sessionId && (
 				<ErrorBoundary>
+					<HidingTimer />
+					<SeekingTimer />
 					<TimerPanel />
-					<HiderPanel currentLocation={currentLocation} />
-					<QuestionPanel currentLocation={currentLocation} />
+					<MultiplayerOptionsTab />
 				</ErrorBoundary>
 			)}
 

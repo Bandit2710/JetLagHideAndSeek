@@ -5,11 +5,15 @@ CREATE TABLE IF NOT EXISTS public.sessions (
   status TEXT DEFAULT 'waiting' NOT NULL CHECK (status IN ('waiting', 'active', 'ended')),
   hider_id UUID,
   settings JSONB,
+  game_phase TEXT DEFAULT 'waiting' NOT NULL CHECK (game_phase IN ('waiting', 'hiding', 'seeking', 'ended')),
+  phase_started_at TIMESTAMP WITH TIME ZONE,
   invite_code TEXT UNIQUE NOT NULL,
   FOREIGN KEY (hider_id) REFERENCES auth.users(id) ON DELETE SET NULL
 );
 
 ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS settings JSONB;
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS game_phase TEXT DEFAULT 'waiting' CHECK (game_phase IN ('waiting', 'hiding', 'seeking', 'ended'));
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS phase_started_at TIMESTAMP WITH TIME ZONE;
 
 -- Create players table
 CREATE TABLE IF NOT EXISTS public.players (
@@ -42,11 +46,14 @@ ALTER TABLE public.questions ADD COLUMN IF NOT EXISTS question_data JSONB;
 CREATE TABLE IF NOT EXISTS public.timers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES public.sessions(id) ON DELETE CASCADE,
+  question_id UUID REFERENCES public.questions(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   duration_ms INTEGER NOT NULL,
   started_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   is_active BOOLEAN DEFAULT true NOT NULL
 );
+
+ALTER TABLE public.timers ADD COLUMN IF NOT EXISTS question_id UUID REFERENCES public.questions(id) ON DELETE CASCADE;
 
 -- Enable RLS (Row Level Security)
 ALTER TABLE public.sessions ENABLE ROW LEVEL SECURITY;

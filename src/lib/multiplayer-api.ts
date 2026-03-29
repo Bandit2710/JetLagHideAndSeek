@@ -328,3 +328,96 @@ export async function updateQuestionAnswer(questionId: string, answer: string) {
 		throw new Error(`Failed to update question answer: ${error.message}`);
 	}
 }
+
+/**
+ * Create a timer for a specific question
+ */
+export async function createQuestionTimer(
+	sessionId: string,
+	questionId: string,
+	questionType: string
+) {
+	// Define durations based on question type
+	const durationMap: Record<string, number> = {
+		"radius": 5 * 60 * 1000, // 5 minutes
+		"thermometer": 5 * 60 * 1000, // 5 minutes
+		"tentacles": 5 * 60 * 1000, // 5 minutes
+		"matching": 5 * 60 * 1000, // 5 minutes
+		"measuring": 5 * 60 * 1000, // 5 minutes
+		"street-trace": 10 * 60 * 1000, // 10 minutes
+		"photo": 10 * 60 * 1000, // 10 minutes (for future use)
+	};
+
+	const durationMs = durationMap[questionType] || 5 * 60 * 1000; // Default to 5 minutes
+
+	const { data, error } = await supabase
+		.from("timers")
+		.insert({
+			session_id: sessionId,
+			question_id: questionId,
+			title: `${questionType.charAt(0).toUpperCase() + questionType.slice(1)} Question`,
+			duration_ms: durationMs,
+			is_active: true,
+		})
+		.select()
+		.single();
+
+	if (error) {
+		throw new Error(`Failed to create question timer: ${error.message}`);
+	}
+
+	return data;
+}
+
+/**
+ * Start the hiding phase (hider begins hiding)
+ */
+export async function startHidingPhase(sessionId: string) {
+	const now = new Date().toISOString();
+	const { error } = await supabase
+		.from("sessions")
+		.update({
+			game_phase: "hiding",
+			phase_started_at: now,
+		})
+		.eq("id", sessionId);
+
+	if (error) {
+		throw new Error(`Failed to start hiding phase: ${error.message}`);
+	}
+}
+
+/**
+ * Start the seeking phase (hiding time over, seekers chase)
+ */
+export async function startSeekingPhase(sessionId: string) {
+	const now = new Date().toISOString();
+	const { error } = await supabase
+		.from("sessions")
+		.update({
+			game_phase: "seeking",
+			phase_started_at: now,
+		})
+		.eq("id", sessionId);
+
+	if (error) {
+		throw new Error(`Failed to start seeking phase: ${error.message}`);
+	}
+}
+
+/**
+ * End the game (hider found)
+ */
+export async function endGame(sessionId: string) {
+	const { error } = await supabase
+		.from("sessions")
+		.update({
+			game_phase: "ended",
+			status: "ended",
+		})
+		.eq("id", sessionId);
+
+	if (error) {
+		throw new Error(`Failed to end game: ${error.message}`);
+	}
+}

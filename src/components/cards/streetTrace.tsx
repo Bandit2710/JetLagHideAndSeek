@@ -14,7 +14,6 @@ import { refreshStreetTrace } from "@/maps/questions/streetTrace";
 import type { StreetTraceQuestion } from "@/maps/schema";
 
 import { QuestionCard } from "./base";
-import { QuestionDebugDetails } from "./debug";
 
 const buildTracePath = (
     coordinates: [number, number][],
@@ -291,10 +290,6 @@ export const StreetTraceQuestionComponent = ({
                     Error: Street Trace requires hider mode to be enabled.
                 </div>
             )}
-            <QuestionDebugDetails
-                debug={(data as any).debug}
-                showHider={$hiderMode !== false}
-            />
             <div className="px-2 pt-2 pb-1">
                 <div className="border rounded-md bg-white">
                     <svg

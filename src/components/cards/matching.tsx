@@ -37,7 +37,6 @@ import {
 } from "@/maps/schema";
 
 import { QuestionCard } from "./base";
-import { QuestionDebugDetails } from "./debug";
 
 export const MatchingQuestionComponent = ({
     data,
@@ -570,16 +569,6 @@ export const MatchingQuestionComponent = ({
                 />
             </SidebarMenuItem>
             {questionSpecific}
-
-            <QuestionDebugDetails
-                debug={
-                    data.type === "same-train-line"
-                        ? undefined
-                        : (data as any).debug
-                }
-                title="Detection Debug"
-                showHider={$hiderMode !== false}
-            />
 
             {data.type !== "custom-zone" && (
                 <LatitudeLongitude

@@ -258,10 +258,6 @@ export const MeasuringQuestionComponent = ({
                 />
             </SidebarMenuItem>
             {questionSpecific}
-            <QuestionDebugDetails
-                debug={(data as any).debug}
-                showHider={$hiderMode !== false}
-            />
             <LatitudeLongitude
                 latitude={data.lat}
                 longitude={data.lng}
